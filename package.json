@@ -1,0 +1,124 @@
+{
+	"name": "vgdb",
+	"displayName": "vGDB",
+	"version": "0.0.1",
+	"publisher": "penagos",
+	"description": "GDB extension for VSCode",
+	"author": {
+		"name": "Luis Penagos",
+		"email": "luis@penagos.co"
+	},
+	"license": "MIT",
+	"keywords": [
+		"multi-root ready"
+	],
+	"engines": {
+		"vscode": "^1.33.0",
+		"node": "^10.15.1"
+	},
+	"categories": [
+		"Debuggers"
+	],
+	"private": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/penagos/vgdb.git"
+	},
+	"bugs": {
+		"url": "https://github.com/penagos/vgdb/issues"
+	},
+	"scripts": {
+		"prepublish": "tsc -p ./src",
+		"compile": "tsc -p ./src",
+		"tslint": "tslint ./src/**/*.ts",
+		"watch": "tsc -w -p ./src",
+		"test": "mocha -u tdd ./out/tests/",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"package": "vsce package",
+		"publish": "vsce publish"
+	},
+	"dependencies": {
+		"vscode-debugadapter": "1.35.0"
+	},
+	"devDependencies": {
+		"@types/node": "10.12.12",
+		"@types/mocha": "5.2.7",
+		"typescript": "3.5.3",
+		"mocha": "6.2.0",
+		"vscode": "1.1.36",
+		"vscode-debugadapter-testsupport": "1.35.0",
+		"tslint": "5.18.0",
+		"vsce": "1.66.0"
+	},
+	"main": "./out/extension",
+	"activationEvents": [
+		"onDebug"
+	],
+	"contributes": {
+		"breakpoints": [
+			{
+				"language": "cpp"
+			},
+			{
+				"language": "c"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "vgdb",
+				"label": "C++ Debug",
+				"program": "./out/debugAdapter.js",
+				"runtime": "node",
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"program"
+						],
+						"properties": {
+							"program": {
+								"type": "string",
+								"description": "Absolute path to a text file.",
+								"default": "${workspaceFolder}/${command:AskForProgramName}"
+							},
+							"stopOnEntry": {
+								"type": "boolean",
+								"description": "Automatically stop after launch.",
+								"default": true
+							},
+							"trace": {
+								"type": "boolean",
+								"description": "Enable logging of the Debug Adapter Protocol.",
+								"default": true
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"type": "vgdb",
+						"request": "launch",
+						"name": "Ask for file name",
+						"program": "${workspaceFolder}/${command:AskForProgramName}",
+						"stopOnEntry": true
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "C++ Debug: Launch",
+						"description": "A new configuration for 'debugging' a user selected markdown file.",
+						"body": {
+							"type": "mock",
+							"request": "launch",
+							"name": "Ask for file name",
+							"program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
+							"stopOnEntry": true
+						}
+					}
+				],
+				"variables": {
+					"AskForProgramName": "extension.mock-debug.getProgramName"
+				}
+			}
+		]
+	}
+}
