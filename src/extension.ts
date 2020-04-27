@@ -18,10 +18,12 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 		// if launch.json is missing or empty
 		if (!config.type && !config.request && !config.name) {
 			const editor = vscode.window.activeTextEditor;
-			if (editor && editor.document.languageId === 'matlab') {
+			if (editor && (editor.document.languageId === 'cpp' || editor.document.languageId === 'c')) {
 				config.type = 'vgdb';
 				config.name = 'Launch';
 				config.request = 'launch';
+				config.program = '${file}';
+				config.stopOnEntry = true;
 			}
 		}
 
@@ -32,6 +34,11 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 				session.setRunAsServer(true);
 				session.start(<NodeJS.ReadableStream>socket, socket);
 			}).listen(0);
+		}
+
+		let address = this.server.address() as Net.AddressInfo;
+		if (address) {
+			config.debugServer = address.port;
 		}
 
 		return config;
