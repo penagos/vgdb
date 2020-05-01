@@ -1,7 +1,8 @@
 import { spawn, ChildProcess } from "child_process";
 import { MIParser } from "./parser/MIParser";
+import { EventEmitter } from "events";
 
-export class GDB {
+export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
     private path: string;
     private args: any;
@@ -14,6 +15,8 @@ export class GDB {
     private initialized: boolean;
 
     public constructor() {
+        super();
+
         this.path = 'gdb';
         this.args = ['--interpreter=mi2', '-q'];
 
@@ -54,7 +57,13 @@ export class GDB {
         let nPos = this.ob.lastIndexOf('\n')
         if (nPos != -1) {
             this.ob = this.ob.substr(0, nPos);
-            this.parser.parse(this.ob);
+
+            try {
+                this.parser.parse(this.ob);
+            } catch(me) {
+                // Relay error state to debug session
+                this.emit('error');
+            }
         }
     }
 
@@ -63,4 +72,6 @@ export class GDB {
         let str = data.toString('utf8');
         console.log("(stderr) " + str);
     }
+
+    private 
 }

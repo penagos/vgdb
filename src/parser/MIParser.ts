@@ -33,17 +33,12 @@ export class MIParser {
                 record = this.parseResultRecord();
             }
         } catch(error) {
-            this.error("Parser error: " + error.message);
+            // Throw to adapter
+            console.error("Parser error: " + error.message);
+            throw error;
         }
 
         return record;
-    }
-
-
-    // Called whenever parser enters invalid state -- will immediately terminate
-    private error(msg: string) {
-        console.error(msg);
-        process.exit(1);
     }
 
     private parseOutOfBandRecord() {
@@ -51,7 +46,6 @@ export class MIParser {
         let match;
 
         if (match = OUT_OF_BAND_RECORD.exec(this.buffer)) {
-            this.buffer = this.buffer.substring(match[0].length);
             this.token = parseInt(match[TOKEN_POS]);
 
             if (match[ASYNC_RECORD_POS]) {
@@ -73,7 +67,7 @@ export class MIParser {
         let record = new AsyncRecord(this.token);
         record.setType(AsyncRecordType[this.buffer[0]]);
 
-        // Should always match
+        this.buffer = this.buffer.substring(this.buffer[0].length);
         if (ASYNC_CLASS.exec(this.buffer)) {
             // async-output ==> async-class ( "," result )* nl
             while (this.buffer[0] == ',') {

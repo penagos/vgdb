@@ -29,6 +29,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
             this.GDB = new GDB();
 
+            // Bind error handler for unexpected GDB errors
+            this.GDB.on('error', (tid: number) => {
+                console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
+                this.sendEvent(new TerminatedEvent());
+            });
+
             response.body = response.body || {};
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;

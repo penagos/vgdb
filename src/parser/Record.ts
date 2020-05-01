@@ -9,6 +9,10 @@ export abstract class Record {
     }
 
     public setType(type: any) {
+        if (type === undefined) {
+            throw new Error("Invalid record type");
+        }
+
         this.type = type;
     }
 
