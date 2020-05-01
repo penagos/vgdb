@@ -1,6 +1,7 @@
 import { AsyncRecord, AsyncRecordType } from "./AsyncRecord";
 import { StreamRecord } from "./StreamRecord";
 
+// MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
 // First sets below -- Regex exprs defined with `` need to escape \ char
 const VARIABLE = /^([a-zA-Z_][a-zA-Z0-9_\-]*)/;
 const TOKEN = `\\d*`;
@@ -19,14 +20,7 @@ export class MIParser {
     private buffer: string;
     private token: number;
 
-    // Called whenever parser enters invalid state -- will immediately terminate
-    private error(msg: string) {
-        console.error(msg);
-        process.exit(1);
-    }
-
     public parse(str: string) {
-        // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
         let record;
         this.buffer = str;
         console.log("(stdout) " + this.buffer);
@@ -43,6 +37,13 @@ export class MIParser {
         }
 
         return record;
+    }
+
+
+    // Called whenever parser enters invalid state -- will immediately terminate
+    private error(msg: string) {
+        console.error(msg);
+        process.exit(1);
     }
 
     private parseOutOfBandRecord() {
