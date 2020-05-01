@@ -16,6 +16,8 @@ export class GDB {
     public constructor() {
         this.path = 'gdb';
         this.args = ['--interpreter=mi2', '-q'];
+
+        this.ob = "";
         this.parser = new MIParser(this);
     }
 

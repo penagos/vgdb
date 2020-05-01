@@ -1,29 +1,64 @@
 import { GDB } from "./GDB";
 
-const GDB_PROMPT = '(gdb)';
+// First sets below -- Regex exprs defined with `` need to escape \ char
+const TOKEN = `\\d*`;
+const ASYNC_RECORD = `[\\*\\+\\=]`;
+const STREAM_RECORD = `[\\~\\@\\&]`;
+const OUT_OF_BAND_RECORD = new RegExp(`^(?:(${TOKEN})(${ASYNC_RECORD})|(${STREAM_RECORD}))`);
+const RESULT_RECORD = new RegExp(`^${TOKEN}\^(done|running|connected|error|exit)`);
+
+// Relative ordering of records in an OUT_OF_BAND_RECORD regexp
+const ASYNC_RECORD_POS = 2;
 
 export class MIParser {
-    private gdb: GDB;
+    //private gdb: GDB;
+    private buffer: string;
 
     public constructor(gdb: GDB) {
-        this.gdb = gdb;
+        //this.gdb = gdb;
     }
 
     public parse(str: string) {
-        console.log("(stdout) " + str);
+        // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
+        this.buffer = str;
+        console.log("(stdout) " + this.buffer);
 
-        if (this.gdb.isInitialized()) {
+        // ( out-of-band-record )* [ result-record ] "(gdb)" nl
+        this.parseOutOfBandRecord();
+        this.parseResultRecord();
+    }
 
-        } else {
-            // Since we suppress the copyright and version headers on startup
-            // we expect the initialization sequence to be complete when we
-            // exactly OBTAIN (gdb)
-            if (str == GDB_PROMPT) {
-                this.gdb.setInitialized();
+    private parseOutOfBandRecord() {
+        // async-record | stream-record
+        let match;
+
+        if (match = OUT_OF_BAND_RECORD.exec(this.buffer)) {
+            if (match[ASYNC_RECORD_POS]) {
+                this.parseAsyncRecord();
             } else {
-                console.log("Failed initialization");
-                process.exit(1);
+                // No need to match against STREAM_RECORD as match is implied
+                this.parseStreamRecord();
             }
+
+            console.log(match);
+        }
+    }
+
+
+    private parseAsyncRecord() {
+
+    }
+
+    private parseStreamRecord() {
+
+    }
+
+    private parseResultRecord() {
+        // [ token ] "^" result-class ( "," result )* nl
+        let match;
+
+        if (match = RESULT_RECORD.exec(this.buffer)) {
+            console.log(match);
         }
     }
 }
