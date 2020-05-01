@@ -10,6 +10,46 @@ const RESULT_RECORD = new RegExp(`^${TOKEN}\^(done|running|connected|error|exit)
 // Relative ordering of records in an OUT_OF_BAND_RECORD regexp
 const ASYNC_RECORD_POS = 2;
 
+
+abstract class Record {
+    public token: number;
+    public abstract outputClass: any;
+
+    public setClass(outputClass: any) {
+        this.outputClass = outputClass;
+    }
+};
+
+class Value {
+    public value: any;
+};
+
+class Result {
+    public variable: string;
+    public value: Value;
+};
+
+enum AsyncRecordType {
+    EXEC = '*',
+    STATUS = '+',
+    NOTIFY = '='
+}
+
+export class AsyncRecord extends Record {
+    public outputClass: AsyncRecordType;
+    public results: Result[];
+};
+
+enum StreamRecordType {
+    CONSOLE = '~',
+    TARGET = '@',
+    LOG = '&'
+}
+
+export class StreamRecord extends Record {
+    public outputClass: StreamRecordType;
+};
+
 export class MIParser {
     //private gdb: GDB;
     private buffer: string;
@@ -24,8 +64,13 @@ export class MIParser {
         console.log("(stdout) " + this.buffer);
 
         // ( out-of-band-record )* [ result-record ] "(gdb)" nl
-        this.parseOutOfBandRecord();
-        this.parseResultRecord();
+        let record = this.parseOutOfBandRecord();
+
+        if (!record) {
+            record = this.parseResultRecord();
+        }
+
+        return record;
     }
 
     private parseOutOfBandRecord() {
@@ -33,20 +78,27 @@ export class MIParser {
         let match;
 
         if (match = OUT_OF_BAND_RECORD.exec(this.buffer)) {
+            this.buffer = this.buffer.substring(match[0].length);
+
             if (match[ASYNC_RECORD_POS]) {
-                this.parseAsyncRecord();
+                return this.parseAsyncRecord();
             } else {
                 // No need to match against STREAM_RECORD as match is implied
-                this.parseStreamRecord();
+                return this.parseStreamRecord();
             }
-
-            console.log(match);
         }
+
+        return null;
     }
 
 
     private parseAsyncRecord() {
+        // exec-async-output | status-async-output | notify-async-output
+        // First character denotes result class
+        let record = new AsyncRecord();
+        record.setClass(AsyncRecordType[this.buffer[0]]);
 
+        return record;
     }
 
     private parseStreamRecord() {
@@ -60,5 +112,7 @@ export class MIParser {
         if (match = RESULT_RECORD.exec(this.buffer)) {
             console.log(match);
         }
+
+        return null;
     }
 }
