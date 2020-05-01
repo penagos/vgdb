@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from "child_process";
-import { MIParser } from "./MIParser";
+import { MIParser } from "./parser/MIParser";
 
 export class GDB {
     private pHandle: ChildProcess;
@@ -18,7 +18,7 @@ export class GDB {
         this.args = ['--interpreter=mi2', '-q'];
 
         this.ob = "";
-        this.parser = new MIParser(this);
+        this.parser = new MIParser();
     }
 
     public spawn(program: string): Promise<any> {

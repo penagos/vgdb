@@ -1,4 +1,5 @@
-import { GDB } from "./GDB";
+import { AsyncRecord, AsyncRecordType } from "./AsyncRecord";
+import { StreamRecord } from "./StreamRecord";
 
 // First sets below -- Regex exprs defined with `` need to escape \ char
 const VARIABLE = /^([a-zA-Z_][a-zA-Z0-9_\-]*)/;
@@ -14,67 +15,9 @@ const TOKEN_POS = 1;
 const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
 
-abstract class Record {
-    public token: number;
-    public abstract type: any;
-    public klass: string;
-
-    public constructor(token: number) {
-        this.token = token;
-    }
-
-    public setType(type: any) {
-        this.type = type;
-    }
-
-    public setKlass(klass: string) {
-        this.klass = klass;
-    }
-};
-
-class Result {
-    public variable: string;
-    public value: any;
-
-    public constructor(name: string, value: any) {
-        this.variable = name;
-        this.value = value;
-    }
-};
-
-enum AsyncRecordType {
-    EXEC = '*',
-    STATUS = '+',
-    NOTIFY = '='
-}
-
-export class AsyncRecord extends Record {
-    public type: AsyncRecordType;
-    public results: Result[];
-
-    public addResult(result: Result) {
-        this.results.push(result);
-    }
-};
-
-enum StreamRecordType {
-    CONSOLE = '~',
-    TARGET = '@',
-    LOG = '&'
-}
-
-export class StreamRecord extends Record {
-    public type: StreamRecordType;
-};
-
 export class MIParser {
-    //private gdb: GDB;
     private buffer: string;
     private token: number;
-
-    public constructor(gdb: GDB) {
-        //this.gdb = gdb;
-    }
 
     // Called whenever parser enters invalid state -- will immediately terminate
     private error(msg: string) {
@@ -102,7 +45,7 @@ export class MIParser {
         return record;
     }
 
-    private parseOutOfBandRecord() : Record {
+    private parseOutOfBandRecord() {
         // async-record | stream-record
         let match;
 
