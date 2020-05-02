@@ -178,7 +178,7 @@ export class MIParser {
             break;
 
             default:
-                throw new Error("unexpected value token " + this.buffer[0]);
+                return null;
         }
     }
 
@@ -215,7 +215,7 @@ export class MIParser {
 
     private parseList(): any[] {
         // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
-        let fHandle, match;
+        let match;
         let list:any[] = [];
 
         // Consume first [
@@ -224,15 +224,16 @@ export class MIParser {
         // Is this a list of values or list of results?
         if ([VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) != -1) {
             // Value list
-            fHandle = this.parseValue;
+            while (match = this.parseValue()) {
+                this.buffer = this.buffer.substring(1);
+                list.push(match);
+            }
         } else {
             // Result list
-            fHandle = this.parseResult;
-        }
-
-        while (match = fHandle()) {
-            this.buffer = this.buffer.substring(1);
-            list.push(match);
+            while (match = this.parseResult()) {
+                this.buffer = this.buffer.substring(1);
+                list.push(match);
+            }
         }
 
         // Consume last ]
