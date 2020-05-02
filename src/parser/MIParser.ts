@@ -11,7 +11,7 @@ const ASYNC_RECORD = `[\\*\\+\\=]`;
 const STREAM_RECORD = `[\\~\\@\\&]`;
 const CSTRING = /^\"((\\.|[^"])*)\"/;
 const OUT_OF_BAND_RECORD = new RegExp(`^(?:(${TOKEN})(${ASYNC_RECORD})|(${STREAM_RECORD}))`);
-const RESULT_RECORD = new RegExp(`^${TOKEN}\^(done|running|connected|error|exit)`);
+const RESULT_RECORD = new RegExp(`^(${TOKEN})\\^(done|running|connected|error|exit)`);
 const ASYNC_CLASS = /^([_a-zA-Z0-9\-]*)/;
 const GDB_PROMPT = "(gdb)";
 
