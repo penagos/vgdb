@@ -1,19 +1,21 @@
 
 export abstract class Record {
     public token: number;
-    public abstract type: any;
     public klass: string;
+    public abstract type: any;
+    protected abstract typeEnum: any;
 
     public constructor(token: number) {
         this.token = token;
     }
 
     public setType(type: any) {
-        if (type === undefined) {
-            throw new Error("Invalid record type");
+        for (let item in this.typeEnum) {
+            if (this.typeEnum[item] == type) {
+                this.type = item;
+                break;
+            }
         }
-
-        this.type = type;
     }
 
     public setKlass(klass: string) {

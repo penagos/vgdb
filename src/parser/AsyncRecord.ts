@@ -8,6 +8,7 @@ export enum AsyncRecordType {
 
 export class AsyncRecord extends Record {
     public type: AsyncRecordType;
+    protected typeEnum = AsyncRecordType;
     public results: Result[];
 
     public addResult(result: Result) {

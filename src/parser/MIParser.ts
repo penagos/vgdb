@@ -1,4 +1,4 @@
-import { AsyncRecord, AsyncRecordType } from "./AsyncRecord";
+import { AsyncRecord } from "./AsyncRecord";
 import { StreamRecord } from "./StreamRecord";
 
 // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
@@ -15,6 +15,8 @@ const ASYNC_CLASS = /^([_a-zA-Z0-9\-]*)/;
 const TOKEN_POS = 1;
 const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
+
+const NO_TOKEN = -1;
 
 export class MIParser {
     private buffer: string;
@@ -46,7 +48,12 @@ export class MIParser {
         let match;
 
         if (match = OUT_OF_BAND_RECORD.exec(this.buffer)) {
-            this.token = parseInt(match[TOKEN_POS]);
+            // If no token precedes output, mark as -1
+            if (match[TOKEN_POS] != "") {
+                this.token = parseInt(match[TOKEN_POS]);
+            } else {
+                this.token = NO_TOKEN;
+            }
 
             if (match[ASYNC_RECORD_POS]) {
                 return this.parseAsyncRecord();
@@ -65,7 +72,7 @@ export class MIParser {
         // exec-async-output | status-async-output | notify-async-output
         // First character denotes result class
         let record = new AsyncRecord(this.token);
-        record.setType(AsyncRecordType[this.buffer[0]]);
+        record.setType(this.buffer[0]);
 
         this.buffer = this.buffer.substring(this.buffer[0].length);
         if (ASYNC_CLASS.exec(this.buffer)) {
