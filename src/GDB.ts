@@ -81,61 +81,70 @@ export class GDB extends EventEmitter {
         if (nPos != -1) {
             this.ob = this.ob.substr(0, nPos);
 
-            try {
-                if (record = this.parser.parse(this.ob)) {
-                    switch (record.constructor) {
-                        case AsyncRecord:
-                            // Notify GDB client of status change
-                            switch (record.getType()) {
-                                case AsyncRecordType.EXEC:
-                                    switch (record.getClass()) {
-                                        case STOPPED:
-
-                                        break;
-
-                                        case RUNNING:
-
-                                        break;
-                                    }
-                                break;
-
-                                case AsyncRecordType.NOTIFY:
-                                
-                                break;
-
-                                case AsyncRecordType.STATUS:
-
-                                break;
-                            }
-                        break;
-
-                        case ResultRecord:
-                            // Fulfill promise on stack
-                            if (record.getToken() !== NaN) {
-                                const handler = this.handlers[record.getToken()];
-
-                                if (handler) {
-                                    handler(record);
-                                    console.log("==> resolving handler " + record.getToken());
-                                    delete this.handlers[record.getToken()];
-                                }
-                            }
-                        break;
-
-                        case StreamRecord:
-                            // Forward raw GDB output to debug console
-                        break;
-                    }
-                } else if (!this.isInitialized()) {
-                    this.setInitialized();
-                }
-            } catch(me) {
-                // Relay error state to debug session
-                this.emit('error');
-            }
+            // If multiple lines have buffered, handle each one
+            let lines = this.ob.substr(0, nPos).split('\n') as string[];
 
             // Flush output buffer for next round of output
-            this.ob = "";
+            this.ob = this.ob.substring(nPos + 1);
+
+            for (let line of lines) {
+                try {
+                    if (record = this.parser.parse(line)) {
+                        this.handleParsedResult(record);
+                    } else if (!this.isInitialized()) {
+                        this.setInitialized();
+                    }
+                } catch(me) {
+                    // Relay error state to debug session
+                    this.emit('error');
+                }
+            }
+        }
+    }
+
+    private handleParsedResult(record: Record) {
+        switch (record.constructor) {
+            case AsyncRecord:
+                // Notify GDB client of status change
+                switch (record.getType()) {
+                    case AsyncRecordType.EXEC:
+                        switch (record.getClass()) {
+                            case STOPPED:
+
+                            break;
+
+                            case RUNNING:
+
+                            break;
+                        }
+                    break;
+
+                    case AsyncRecordType.NOTIFY:
+                    
+                    break;
+
+                    case AsyncRecordType.STATUS:
+
+                    break;
+                }
+            break;
+
+            case ResultRecord:
+                // Fulfill promise on stack
+                if (record.getToken() !== NaN) {
+                    const handler = this.handlers[record.getToken()];
+
+                    if (handler) {
+                        handler(record);
+                        console.log("==> resolving handler " + record.getToken());
+                        delete this.handlers[record.getToken()];
+                    }
+                }
+            break;
+
+            case StreamRecord:
+                // Forward raw GDB output to debug console
+            break;
         }
     }
 
