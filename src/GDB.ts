@@ -5,6 +5,7 @@ import { Record } from "./parser/Record";
 import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
+import { Breakpoint } from "vscode-debugadapter";
 
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
@@ -148,9 +149,31 @@ export class GDB extends EventEmitter {
         });
     }
 
-    public setBreakpoints(bps): Promise<any>  {
+    public setBreakpoints(sourceFile: string, bps): Promise<Breakpoint[]>  {
         return new Promise((resolve, reject) => {
+            // Under the hood dispatch to sendCommand for each breakpoint and
+            // only fulfill greater request once all sets have been fulfilled
+            // by GDB
+            let bpsPending: Promise<any>[] = [];
+            let bpsVerified: Breakpoint[] = [];
 
+            if (bps) {
+                bps.forEach((bp) => {
+                    let promise = this.sendCommand(`-break-insert ${sourceFile}:${bp.line}`);
+                    bpsPending.push(promise);
+                    promise.then((record: ResultRecord) => {
+                        let verifiedBp = new Breakpoint(true);
+                        bpsVerified.push(verifiedBp);
+                    });
+                });
+
+                Promise.all(bpsPending).then(brkpoints => {
+                    resolve(bpsVerified);
+                });
+            } else {
+                // No breakpoints to verify
+                resolve([]);
+            }
         });
     }
 }
