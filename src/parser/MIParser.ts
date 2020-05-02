@@ -15,6 +15,9 @@ const RESULT_RECORD = new RegExp(`^${TOKEN}\^(done|running|connected|error|exit)
 const ASYNC_CLASS = /^([_a-zA-Z0-9\-]*)/;
 const GDB_PROMPT = "(gdb)";
 
+export const STOPPED = "stopped";
+export const RUNNING = "running";
+
 const VALUE_CSTRING = '"';
 const VALUE_TUPLE = '{';
 const VALUE_LIST = '[';

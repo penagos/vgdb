@@ -1,7 +1,8 @@
 import { spawn, ChildProcess } from "child_process";
-import { MIParser } from "./parser/MIParser";
+import { MIParser, STOPPED, RUNNING } from "./parser/MIParser";
 import { EventEmitter } from "events";
-import { AsyncRecord } from "./parser/AsyncRecord";
+import { Record } from "./parser/Record";
+import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 
@@ -52,7 +53,7 @@ export class GDB extends EventEmitter {
 
     // Called on any stdout produced by GDB Process
     private stdoutHandler(data) {
-        let record;
+        let record:(Record | null);
         let str = data.toString('utf8');
         this.ob += str;
 
@@ -66,15 +67,36 @@ export class GDB extends EventEmitter {
                 if (record = this.parser.parse(this.ob)) {
                     switch (record.constructor) {
                         case AsyncRecord:
+                            // Notify GDB client of status change
+                            switch (record.getType()) {
+                                case AsyncRecordType.EXEC:
+                                    switch (record.getClass()) {
+                                        case STOPPED:
 
+                                        break;
+
+                                        case RUNNING:
+
+                                        break;
+                                    }
+                                break;
+
+                                case AsyncRecordType.NOTIFY:
+                                
+                                break;
+
+                                case AsyncRecordType.STATUS:
+
+                                break;
+                            }
                         break;
 
                         case ResultRecord:
-
+                            // Fulfill promise on stack
                         break;
 
                         case StreamRecord:
-
+                            // Forward raw GDB output to debug console
                         break;
                     }
                 } else if (!this.isInitialized()) {
