@@ -144,7 +144,7 @@ export class MIParser {
                 }
             }
 
-            return result;
+            return record;
         } else {
             return null;
         }
