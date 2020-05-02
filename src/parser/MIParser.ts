@@ -150,13 +150,13 @@ export class MIParser {
         }
     }
 
-    private parseResult() : Result | null {
+    private parseResult() : any[] | null {
         let match;
 
         if (match = VARIABLE.exec(this.buffer)) {
             // Also consume '='
             this.buffer = this.buffer.substring(match[0].length + 1);
-            return new Result(match[1], this.parseValue());
+            return [match[1], this.parseValue()];
         } else {
             return null;
         }
@@ -197,13 +197,13 @@ export class MIParser {
     private parseTuple(): Result[] {
         // tuple ==> "{}" | "{" result ( "," result )* "}"
         let result;
-        let tuple:Result[] = [];
+        let tuple = <any>{};
 
         do {
             // Skip over , or {
             this.buffer = this.buffer.substring(1);
             if (result = this.parseResult()) {
-                tuple.push(result);
+                tuple[result[0]] = result[1];
             }
         } while (this.buffer[0] == ',');
 
@@ -232,7 +232,7 @@ export class MIParser {
             // Result list
             while (match = this.parseResult()) {
                 this.buffer = this.buffer.substring(1);
-                list.push(match);
+                list[match[0]] = match[1];
             }
         }
 

@@ -173,7 +173,8 @@ export class GDB extends EventEmitter {
                     let promise = this.sendCommand(`-break-insert ${sourceFile}:${bp.line}`);
                     bpsPending.push(promise);
                     promise.then((record: ResultRecord) => {
-                        let verifiedBp = new Breakpoint(true);
+                        let bpInfo = record.getResult("bkpt");
+                        let verifiedBp = new Breakpoint(true, bpInfo.line);
                         bpsVerified.push(verifiedBp);
                     });
                 });
