@@ -1,4 +1,4 @@
-class Result {
+export class Result {
     public variable: string;
     public value: any;
 

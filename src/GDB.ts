@@ -49,6 +49,7 @@ export class GDB extends EventEmitter {
 
     // Called on any stdout produced by GDB Process
     private stdoutHandler(data) {
+        let record;
         let str = data.toString('utf8');
         this.ob += str;
 
@@ -59,11 +60,14 @@ export class GDB extends EventEmitter {
             this.ob = this.ob.substr(0, nPos);
 
             try {
-                this.parser.parse(this.ob);
+                record = this.parser.parse(this.ob);
             } catch(me) {
                 // Relay error state to debug session
                 this.emit('error');
             }
+
+            // Flush output buffer for next round of output
+            this.ob = "";
         }
     }
 
