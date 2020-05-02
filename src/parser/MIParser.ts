@@ -2,6 +2,7 @@ import { Record } from "./Record";
 import { AsyncRecord } from "./AsyncRecord";
 import { StreamRecord } from "./StreamRecord";
 import { Result } from "./Result";
+import { ResultRecord } from "./ResultRecord";
 
 // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
 // First sets below -- Regex exprs defined with `` need to escape \ char
@@ -24,7 +25,6 @@ const VALUE_LIST = '[';
 
 // Relative ordering of records in an OUT_OF_BAND_RECORD regexp
 const TOKEN_POS = 1;
-const CLASS_POS = 1;
 const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
 
@@ -55,6 +55,7 @@ export class MIParser {
             }
         } catch(error) {
             // Throw to adapter
+            console.error(error.stack);
             console.error("Parser error: " + error.message);
             throw error;
         }
@@ -62,17 +63,22 @@ export class MIParser {
         return record;
     }
 
+    private parseToken(match): number {
+        if (match[TOKEN_POS] != "") {
+            this.token = parseInt(match[TOKEN_POS]);
+        } else {
+            this.token = NaN;
+        }
+
+        return this.token;
+    }
+
     private parseOutOfBandRecord() {
         // async-record | stream-record
         let match;
 
         if (match = OUT_OF_BAND_RECORD.exec(this.buffer)) {
-            // If no token precedes output, mark as -1
-            if (match[TOKEN_POS] != "") {
-                this.token = parseInt(match[TOKEN_POS]);
-            } else {
-                this.token = NaN;
-            }
+            this.parseToken(match);
 
             if (match[ASYNC_RECORD_POS]) {
                 return this.parseAsyncRecord();
@@ -95,7 +101,7 @@ export class MIParser {
         this.buffer = this.buffer.substring(this.buffer[0].length);
         if (match = ASYNC_CLASS.exec(this.buffer)) {
             // async-output ==> async-class ( "," result )* nl
-            record.setClass(match[CLASS_POS]);
+            record.setClass(match[1]);
             this.buffer = this.buffer.substring(match[0].length);
 
             while (this.buffer[0] == ',') {
@@ -120,14 +126,31 @@ export class MIParser {
 
     private parseResultRecord() {
         // [ token ] "^" result-class ( "," result )* nl
-        let match;
+        let match, record:ResultRecord, result;
 
         if (match = RESULT_RECORD.exec(this.buffer)) {
-            console.log(match);
+            record = new ResultRecord(this.parseToken(match));
+            record.setClass(match[2]);
+
+            // Consume first part of match, parse results*
+            this.buffer = this.buffer.substring(match[0].length);
+
+            while (this.buffer[0] == ',') {
+                // Consume , and read result
+                this.buffer = this.buffer.substr(1);
+
+                if (result = this.parseResult()) {
+                    record.addResult(result);
+                }
+            }
+
+            return result;
+        } else {
+            return null;
         }
     }
 
-    private parseResult() : Result {
+    private parseResult() : Result | null {
         let match;
 
         if (match = VARIABLE.exec(this.buffer)) {
@@ -135,7 +158,7 @@ export class MIParser {
             this.buffer = this.buffer.substring(match[0].length + 1);
             return new Result(match[1], this.parseValue());
         } else {
-            throw new Error("Failed to parse result");
+            return null;
         }
     }
 
@@ -163,6 +186,7 @@ export class MIParser {
         let match;
 
         if (match = CSTRING.exec(this.buffer)) {
+            // Consume corresponding '"'
             this.buffer = this.buffer.substring(match[0].length);
             return match[1];
         } else {
