@@ -53,7 +53,10 @@ export class GDB extends EventEmitter {
     public sendCommand(cmd: string): Promise<any> {
         return new Promise((resolve, reject) => {
             const token = ++this.token;
-            this.pHandle.stdin.write(token + cmd + '\n');
+            cmd = token + cmd;
+
+            console.log("> " + cmd);
+            this.pHandle.stdin.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
 				resolve(record);
@@ -151,7 +154,7 @@ export class GDB extends EventEmitter {
     // Called on any stderr produced by GDB Process
     private stderrHandler(data) {
         let str = data.toString('utf8');
-        console.log("(stderr) " + str);
+        console.log("! " + str);
     }
 
     public clearBreakpoints(): Promise<any>  {

@@ -35,7 +35,7 @@ export class MIParser {
     public parse(str: string): Record | null {
         let record;
         this.buffer = str;
-        console.log("(stdout) " + this.buffer);
+        console.log("< " + this.buffer);
 
         try {
             // ( out-of-band-record )* [ result-record ] "(gdb)" nl
