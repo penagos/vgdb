@@ -182,7 +182,31 @@ export class MIParser {
         return tuple;
     }
 
-    private parseList() {
+    private parseList(): any[] {
         // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
+        let fHandle, match;
+        let list:any[] = [];
+
+        // Consume first [
+        this.buffer = this.buffer.substring(1);
+
+        // Is this a list of values or list of results?
+        if ([VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) != -1) {
+            // Value list
+            fHandle = this.parseValue;
+        } else {
+            // Result list
+            fHandle = this.parseResult;
+        }
+
+        while (match = fHandle()) {
+            this.buffer = this.buffer.substring(1);
+            list.push(match);
+        }
+
+        // Consume last ]
+        this.buffer = this.buffer.substring(1);
+
+        return list;
     }
 }
