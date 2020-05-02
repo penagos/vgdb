@@ -22,7 +22,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 				config.type = 'vgdb';
 				config.name = 'Launch';
 				config.request = 'launch';
-				config.program = '${file}';
+				config.program = '/home/luis/a.out';
 				config.stopOnEntry = true;
 			}
 		}

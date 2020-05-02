@@ -10,7 +10,7 @@ import { Breakpoint } from "vscode-debugadapter";
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
     private path: string;
-    private args: any;
+    private args: string[];
     private parser: MIParser;
     private token: number;
     private handlers: { [token: number]: (record: Record) => any };
@@ -35,6 +35,8 @@ export class GDB extends EventEmitter {
 
     public spawn(program: string): Promise<any> {
         return new Promise((resolve, reject) => {
+            this.args.push(program);
+
             this.pHandle = spawn(this.path, this.args);
             this.pHandle.on('error', (err) => {
                 // Child process cannot be started (or killed)
