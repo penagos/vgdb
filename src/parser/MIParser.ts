@@ -94,7 +94,7 @@ export class MIParser {
         this.buffer = this.buffer.substring(this.buffer[0].length);
         if (match = ASYNC_CLASS.exec(this.buffer)) {
             // async-output ==> async-class ( "," result )* nl
-            record.setKlass(match[CLASS_POS]);
+            record.setClass(match[CLASS_POS]);
             this.buffer = this.buffer.substring(match[0].length);
 
             while (this.buffer[0] == ',') {

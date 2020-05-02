@@ -8,9 +8,9 @@ export enum AsyncRecordType {
 }
 
 export class AsyncRecord extends Record {
-    public type: AsyncRecordType;
+    protected type: AsyncRecordType;
     protected typeEnum = AsyncRecordType;
-    public results: Result[];
+    private results: Result[];
 
     public constructor(token: number) {
         super(token);

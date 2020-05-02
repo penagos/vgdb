@@ -1,9 +1,9 @@
 
 export abstract class Record {
-    public token: number;
-    public klass: string;
-    public abstract type: any;
+    protected token: number;
+    protected abstract type: any;
     protected abstract typeEnum: any;
+    private klass: string;
 
     public constructor(token: number) {
         this.token = token;
@@ -18,7 +18,15 @@ export abstract class Record {
         }
     }
 
-    public setKlass(klass: string) {
+    public getType() {
+        return this.type;
+    }
+
+    public setClass(klass: string) {
         this.klass = klass;
+    }
+
+    public getClass() {
+        return this.klass;
     }
 };

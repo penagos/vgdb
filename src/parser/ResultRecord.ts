@@ -10,9 +10,9 @@ export enum ResultRecordType {
 }
 
 export class ResultRecord extends Record {
-    public type: ResultRecordType;
+    protected type: ResultRecordType;
     protected typeEnum = ResultRecordType;
-    public results: Result[];
+    private results: Result[];
 
     public constructor(token: number) {
         super(token);
