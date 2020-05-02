@@ -1,6 +1,9 @@
 import { spawn, ChildProcess } from "child_process";
 import { MIParser } from "./parser/MIParser";
 import { EventEmitter } from "events";
+import { AsyncRecord } from "./parser/AsyncRecord";
+import { ResultRecord } from "./parser/ResultRecord";
+import { StreamRecord } from "./parser/StreamRecord";
 
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
@@ -60,7 +63,23 @@ export class GDB extends EventEmitter {
             this.ob = this.ob.substr(0, nPos);
 
             try {
-                record = this.parser.parse(this.ob);
+                if (record = this.parser.parse(this.ob)) {
+                    switch (record.constructor) {
+                        case AsyncRecord:
+
+                        break;
+
+                        case ResultRecord:
+
+                        break;
+
+                        case StreamRecord:
+
+                        break;
+                    }
+                } else if (!this.isInitialized()) {
+                    this.setInitialized();
+                }
             } catch(me) {
                 // Relay error state to debug session
                 this.emit('error');

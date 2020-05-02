@@ -13,6 +13,7 @@ const CSTRING = /^\"((\\.|[^"])*)\"/;
 const OUT_OF_BAND_RECORD = new RegExp(`^(?:(${TOKEN})(${ASYNC_RECORD})|(${STREAM_RECORD}))`);
 const RESULT_RECORD = new RegExp(`^${TOKEN}\^(done|running|connected|error|exit)`);
 const ASYNC_CLASS = /^([_a-zA-Z0-9\-]*)/;
+const GDB_PROMPT = "(gdb)";
 
 const VALUE_CSTRING = '"';
 const VALUE_TUPLE = '{';
@@ -30,7 +31,7 @@ export class MIParser {
     private buffer: string;
     private token: number;
 
-    public parse(str: string): Record {
+    public parse(str: string): Record | null {
         let record;
         this.buffer = str;
         console.log("(stdout) " + this.buffer);
@@ -41,6 +42,15 @@ export class MIParser {
 
             if (!record) {
                 record = this.parseResultRecord();
+            }
+
+            if (!record) {
+                // (gdb) -- if not we have encoountered an impossible situation
+                if (this.buffer == GDB_PROMPT) {
+                    return null;
+                } else {
+                    throw new Error("unexpected output: " + this.buffer);
+                }
             }
         } catch(error) {
             // Throw to adapter
@@ -70,8 +80,6 @@ export class MIParser {
             } else {
                 throw new Error("Expected to find AsyncRecord or StreamRecord");
             }
-        } else {
-            throw new Error("Failed to parse OutOfBandRecord");
         }
     }
 
@@ -115,8 +123,6 @@ export class MIParser {
 
         if (match = RESULT_RECORD.exec(this.buffer)) {
             console.log(match);
-        } else {
-            throw new Error("Failed to parse resultRecord");
         }
     }
 
