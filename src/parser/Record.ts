@@ -2,7 +2,6 @@
 export abstract class Record {
     protected token: number;
     protected abstract type: any;
-    protected abstract typeEnum: any;
     private klass: string;
 
     public constructor(token: number) {
@@ -14,12 +13,7 @@ export abstract class Record {
     }
 
     public setType(type: any) {
-        for (let item in this.typeEnum) {
-            if (this.typeEnum[item] == type) {
-                this.type = item;
-                break;
-            }
-        }
+        this.type = type;
     }
 
     public getType() {

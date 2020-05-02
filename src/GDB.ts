@@ -55,7 +55,7 @@ export class GDB extends EventEmitter {
             const token = ++this.token;
             cmd = token + cmd;
 
-            console.log("> " + cmd);
+            console.warn(cmd);
             this.pHandle.stdin.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
@@ -113,7 +113,7 @@ export class GDB extends EventEmitter {
                     case AsyncRecordType.EXEC:
                         switch (record.getClass()) {
                             case STOPPED:
-
+                                console.log("stopped");
                             break;
 
                             case RUNNING:
@@ -139,7 +139,6 @@ export class GDB extends EventEmitter {
 
                     if (handler) {
                         handler(record);
-                        console.log("==> resolving handler " + record.getToken());
                         delete this.handlers[record.getToken()];
                     }
                 }
@@ -154,7 +153,7 @@ export class GDB extends EventEmitter {
     // Called on any stderr produced by GDB Process
     private stderrHandler(data) {
         let str = data.toString('utf8');
-        console.log("! " + str);
+        console.error(str);
     }
 
     public clearBreakpoints(): Promise<any>  {
@@ -190,5 +189,10 @@ export class GDB extends EventEmitter {
                 resolve([]);
             }
         });
+    }
+
+    public startInferior(): Promise<any> {
+        // Launch the debuggee target
+        return this.sendCommand(`-exec-run`);
     }
 }

@@ -10,7 +10,6 @@ export enum ResultRecordType {
 
 export class ResultRecord extends Record {
     protected type: ResultRecordType;
-    protected typeEnum = ResultRecordType;
     private results: Map<string, any>;
 
     public constructor(token: number) {

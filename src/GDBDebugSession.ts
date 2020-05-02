@@ -38,6 +38,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body = response.body || {};
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;
+            response.body.supportsConfigurationDoneRequest = true;
 
             this.sendResponse(response);
             this.sendEvent(new InitializedEvent());
@@ -67,4 +68,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
             });
         }
+
+    protected configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
+        args: DebugProtocol.ConfigurationDoneArguments): void {
+            // Once all breakpoints have been sent and synced with the debugger
+            // we can start the inferior
+            this.GDB.startInferior();
+            super.configurationDoneRequest(response, args);
+    }
 }

@@ -1,5 +1,4 @@
 import { Record } from "./Record";
-import { Result } from "./Result";
 
 export enum AsyncRecordType {
     EXEC = '*',
@@ -9,15 +8,14 @@ export enum AsyncRecordType {
 
 export class AsyncRecord extends Record {
     protected type: AsyncRecordType;
-    protected typeEnum = AsyncRecordType;
-    private results: Result[];
+    private results: Map<string, any>;
 
     public constructor(token: number) {
-        super(token);
-        this.results = [];
+        super(token);   
+        this.results = new Map();
     }
 
-    public addResult(result: Result) {
-        this.results.push(result);
+    public addResult(result) {
+        this.results[result[0]] = result[1];
     }
 };
