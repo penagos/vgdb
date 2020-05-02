@@ -7,6 +7,8 @@ import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint } from "vscode-debugadapter";
 
+export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
+
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
     private path: string;
@@ -113,7 +115,15 @@ export class GDB extends EventEmitter {
                     case AsyncRecordType.EXEC:
                         switch (record.getClass()) {
                             case STOPPED:
-                                console.log("stopped");
+                                let reason = record.getResult("reason");
+                                switch (reason) {
+                                    case EVENT_BREAKPOINT_HIT:
+                                        this.emit(reason, parseInt(record.getResult("thread-id")));
+                                    break;
+
+                                    default:
+                                        throw new Error("unknown stop reason: " + reason);
+                                }
                             break;
 
                             case RUNNING:

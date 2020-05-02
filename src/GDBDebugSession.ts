@@ -2,9 +2,10 @@ import { DebugProtocol } from 'vscode-debugprotocol';
 import {
     InitializedEvent,
 	LoggingDebugSession,
-    TerminatedEvent
+    TerminatedEvent,
+    StoppedEvent
 } from 'vscode-debugadapter';
-import { GDB } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT } from './GDB';
 
 /**
  * This interface describes the mock-debug specific launch attributes
@@ -33,6 +34,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB.on('error', (tid: number) => {
                 console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
                 this.sendEvent(new TerminatedEvent());
+            });
+
+            // Events triggered by debuggeer
+            this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
+                this.sendEvent(new StoppedEvent("breakpoint", threadID));
             });
 
             response.body = response.body || {};

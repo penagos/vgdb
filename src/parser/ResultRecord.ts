@@ -10,19 +10,8 @@ export enum ResultRecordType {
 
 export class ResultRecord extends Record {
     protected type: ResultRecordType;
-    private results: Map<string, any>;
 
     public constructor(token: number) {
         super(token);
-        this.results = new Map();
-    }
-
-    public addResult(result) {
-        // We store entries in a map instead for fast, hashed access
-        this.results[result[0]] = result[1];
-    }
-
-    public getResult(key: string) {
-        return this.results[key];
     }
 };

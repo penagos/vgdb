@@ -2,10 +2,12 @@
 export abstract class Record {
     protected token: number;
     protected abstract type: any;
+    protected results: Map<string, any>;
     private klass: string;
 
     public constructor(token: number) {
         this.token = token;
+        this.results = new Map();
     }
 
     public getToken() {
@@ -26,5 +28,13 @@ export abstract class Record {
 
     public getClass() {
         return this.klass;
+    }
+
+    public addResult(result) {
+        this.results[result[0]] = result[1];
+    }
+
+    public getResult(key: string) {
+        return this.results[key];
     }
 };
