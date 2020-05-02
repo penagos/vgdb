@@ -236,9 +236,6 @@ export class MIParser {
             }
         }
 
-        // Consume last ]
-        this.buffer = this.buffer.substring(1);
-
         return list;
     }
 }
