@@ -28,8 +28,6 @@ const CLASS_POS = 1;
 const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
 
-const NO_TOKEN = -1;
-
 export class MIParser {
     private buffer: string;
     private token: number;
@@ -73,7 +71,7 @@ export class MIParser {
             if (match[TOKEN_POS] != "") {
                 this.token = parseInt(match[TOKEN_POS]);
             } else {
-                this.token = NO_TOKEN;
+                this.token = NaN;
             }
 
             if (match[ASYNC_RECORD_POS]) {

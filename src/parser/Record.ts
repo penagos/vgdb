@@ -9,6 +9,10 @@ export abstract class Record {
         this.token = token;
     }
 
+    public getToken() {
+        return this.token;
+    }
+
     public setType(type: any) {
         for (let item in this.typeEnum) {
             if (this.typeEnum[item] == type) {

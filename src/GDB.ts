@@ -11,6 +11,8 @@ export class GDB extends EventEmitter {
     private path: string;
     private args: any;
     private parser: MIParser;
+    private token: number;
+    private handlers: { [token: number]: (record: Record) => any };
 
     // Output buffering for stdout pipe
     private ob: string;
@@ -24,7 +26,9 @@ export class GDB extends EventEmitter {
         this.path = 'gdb';
         this.args = ['--interpreter=mi2', '-q'];
 
+        this.token = 0;
         this.ob = "";
+        this.handlers = [];
         this.parser = new MIParser();
     }
 
@@ -39,6 +43,18 @@ export class GDB extends EventEmitter {
 
             this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
             this.pHandle.stderr.on('data', this.stderrHandler.bind(this));
+        });
+    }
+
+    // Send an MI command to GDB
+    public sendCommand(cmd: string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const token = ++this.token;
+            this.pHandle.stdin.write(token + cmd + '\n');
+
+            this.handlers[token] = (record: Record) => {
+				resolve(record);
+			};
         });
     }
 
@@ -93,6 +109,15 @@ export class GDB extends EventEmitter {
 
                         case ResultRecord:
                             // Fulfill promise on stack
+                            if (record.getToken() !== NaN) {
+                                const handler = this.handlers[record.getToken()];
+
+                                if (handler) {
+                                    handler(record);
+                                    console.log("==> resolving handler " + record.getToken());
+                                    delete this.handlers[record.getToken()];
+                                }
+                            }
                         break;
 
                         case StreamRecord:
@@ -116,7 +141,5 @@ export class GDB extends EventEmitter {
     private stderrHandler(data) {
         let str = data.toString('utf8');
         console.log("(stderr) " + str);
-    }
-
-    private 
+    } 
 }
