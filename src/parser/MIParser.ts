@@ -47,7 +47,7 @@ export class MIParser {
 
             if (!record) {
                 // (gdb) -- if not we have encoountered an impossible situation
-                if (this.buffer == GDB_PROMPT) {
+                if (this.buffer.trimRight() == GDB_PROMPT) {
                     return null;
                 } else {
                     throw new Error("unexpected output: " + this.buffer);

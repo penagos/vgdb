@@ -63,7 +63,6 @@ export class GDB extends EventEmitter {
     }
 
     public setInitialized() {
-        console.log("GDB is initialized");
         this.initialized = true;
     }
 
