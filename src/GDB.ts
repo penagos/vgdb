@@ -140,5 +140,17 @@ export class GDB extends EventEmitter {
     private stderrHandler(data) {
         let str = data.toString('utf8');
         console.log("(stderr) " + str);
-    } 
+    }
+
+    public clearBreakpoints(): Promise<any>  {
+        return new Promise((resolve, reject) => {
+
+        });
+    }
+
+    public setBreakpoints(bps): Promise<any>  {
+        return new Promise((resolve, reject) => {
+
+        });
+    }
 }

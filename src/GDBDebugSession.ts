@@ -59,6 +59,12 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected setBreakPointsRequest (
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): void {
-            console.log("setting breakpoints");
+            this.GDB.clearBreakpoints();
+            this.GDB.setBreakpoints(args.breakpoints).then((bps) => {
+                response.body = {
+                    breakpoints: bps
+                };
+                this.sendResponse(response);
+            });
         }
 }
