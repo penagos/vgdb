@@ -163,11 +163,26 @@ export class MIParser {
         }
     }
 
-    private parseTuple() {
+    private parseTuple(): Result[] {
+        // tuple ==> "{}" | "{" result ( "," result )* "}"
+        let result;
+        let tuple:Result[] = [];
 
+        do {
+            // Skip over , or {
+            this.buffer = this.buffer.substring(1);
+            if (result = this.parseResult()) {
+                tuple.push(result);
+            }
+        } while (this.buffer[0] == ',');
+
+        // Conbsume last }
+        this.buffer = this.buffer.substring(1);
+
+        return tuple;
     }
 
     private parseList() {
-
+        // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
     }
 }
