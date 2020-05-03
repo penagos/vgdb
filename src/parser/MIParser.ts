@@ -237,6 +237,11 @@ export class MIParser {
             }
         }
 
+        // If empty list, eat analogous ]
+        if (!list.length) {
+            this.buffer = this.buffer.substring(1);
+        }
+
         return list;
     }
 }
