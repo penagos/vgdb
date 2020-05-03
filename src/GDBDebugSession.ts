@@ -7,9 +7,11 @@ import {
     StackFrame,
     Thread,
     Scope,
-    ContinuedEvent
+    ContinuedEvent,
+    OutputEvent
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT } from './GDB';
+import { Record } from "./parser/Record";
 
 const SCOPE_LOCAL = 1;
 
@@ -40,6 +42,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB.on('error', (tid: number) => {
                 console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
                 this.sendEvent(new TerminatedEvent());
+            });
+
+            // Pipe to debug console
+            this.GDB.on(EVENT_OUTPUT, (text: string) => {
+                this.sendEvent(new OutputEvent(text, 'console'));
             });
 
             // Events triggered by debuggeer
@@ -182,5 +189,18 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.GDB.continue(args.threadId).then(() => {
             this.sendResponse(response);
         });
-	}
+    }
+
+    protected evaluateRequest(response: DebugProtocol.EvaluateResponse,
+        args: DebugProtocol.EvaluateArguments): void {
+
+        switch (args.context) {
+            case "repl":
+                // User is requesting evaluation of expr at debug console prompt
+                this.GDB.sendCommand(args.expression).then((result: Record) => {
+                    this.sendResponse(response);
+                });
+            break;
+        }
+    }
 }

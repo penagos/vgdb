@@ -8,6 +8,7 @@ import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 
 // GDB stop reasons
+export const EVENT_OUTPUT = "output";
 export const EVENT_RUNNING = "running";
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
@@ -105,6 +106,9 @@ export class GDB extends EventEmitter {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
+
+                        // Forward output to debug console
+                        this.emit(EVENT_OUTPUT, line + '\n');
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
                     }
