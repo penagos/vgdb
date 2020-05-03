@@ -8,7 +8,7 @@ import {
     Thread,
     Scope
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE } from './GDB';
 
 const SCOPE_LOCAL = 1;
 
@@ -44,6 +44,10 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Events triggered by debuggeer
             this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
                 this.sendEvent(new StoppedEvent("breakpoint", threadID));
+            });
+
+            this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
+                this.sendEvent(new StoppedEvent("step", threadID));
             });
 
             response.body = response.body || {};
@@ -128,7 +132,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected nextRequest(response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments): void {
 
-        this.GDB.next().then(() => {
+        this.GDB.next(args.threadId).then(() => {
             this.sendResponse(response);
         });
     }
@@ -136,7 +140,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected continueRequest(response: DebugProtocol.ContinueResponse,
         args: DebugProtocol.ContinueArguments): void {
 
-        this.GDB.continue().then(() => {
+        this.GDB.continue(args.threadId).then(() => {
             this.sendResponse(response);
         });
 	}

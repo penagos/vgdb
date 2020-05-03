@@ -8,6 +8,7 @@ import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
+export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
 
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
@@ -101,8 +102,9 @@ export class GDB extends EventEmitter {
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
                     }
-                } catch(me) {
+                } catch(error) {
                     // Relay error state to debug session
+                    console.error(error.stack);
                     this.emit('error');
                 }
             }
@@ -122,6 +124,10 @@ export class GDB extends EventEmitter {
 
                                 switch (reason) {
                                     case EVENT_BREAKPOINT_HIT:
+                                        this.emit(reason, parseInt(record.getResult("thread-id")));
+                                    break;
+
+                                    case EVENT_END_STEPPING_RANGE:
                                         this.emit(reason, parseInt(record.getResult("thread-id")));
                                     break;
 
@@ -248,15 +254,11 @@ export class GDB extends EventEmitter {
         });
     }
 
-    public next(): Promise<any> {
-        return new Promise((resolve, reject) => {
-
-        });
+    public next(threadID: number): Promise<any> {
+        return this.sendCommand(`-exec-next --thread ${threadID}`);
     }
 
-    public continue(): Promise<any> {
-        return new Promise((resolve, reject) => {
-
-        });
+    public continue(threadID: number): Promise<any> {
+        return this.sendCommand(`-exec-continue --thread ${threadID}`);
     }
 }

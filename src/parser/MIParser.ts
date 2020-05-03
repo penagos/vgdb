@@ -48,16 +48,15 @@ export class MIParser {
             }
 
             if (!record) {
-                // (gdb) -- if not we have encoountered an impossible situation
+                // (gdb) -- if not the inferior produced stdout
                 if (this.buffer.trimRight() == GDB_PROMPT) {
                     return null;
                 } else {
-                    throw new Error("unexpected output: " + this.buffer);
+                    // Print to output window
                 }
             }
         } catch(error) {
             // Throw to adapter
-            console.error(error.stack);
             console.error("Parser error: " + error.message);
             throw error;
         }
