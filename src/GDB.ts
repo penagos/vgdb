@@ -14,6 +14,7 @@ export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
 export const EVENT_FUNCTION_FINISHED = "function-finished";
 export const EVENT_EXITED_NORMALLY = "exited-normally";
+export const EVENT_SIGNAL = "signal-received";
 
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
@@ -117,6 +118,10 @@ export class GDB extends EventEmitter {
                         // Forward output to debug console
                         this.emit(EVENT_OUTPUT, line + '\n');
                     } else if (!this.isInitialized()) {
+                        // Allow relaying SIGINT signals to inferior
+                        // TODO: revisit this
+                        this.sendCommand(`-gdb-set target-async on`);
+                        this.sendCommand(`-interpreter-exec console "monitor halt"`);
                         this.setInitialized();
                     }
                 } catch(error) {
@@ -155,6 +160,10 @@ export class GDB extends EventEmitter {
 
                                     case EVENT_EXITED_NORMALLY:
                                         this.emit(reason)
+                                    break;
+
+                                    case EVENT_SIGNAL:
+                                        this.emit(reason, this.threadID);
                                     break;
 
                                     default:
@@ -212,7 +221,6 @@ export class GDB extends EventEmitter {
     private stderrHandler(data) {
         let str = data.toString('utf8');
         console.error(str);
-        this.emit('error');
     }
 
     public clearBreakpoints(): Promise<any>  {
@@ -313,5 +321,9 @@ export class GDB extends EventEmitter {
 
     public stepOut(threadID: number): Promise<any> {
         return this.sendCommand(`-exec-finish --thread ${threadID}`);
+    }
+
+    public pause(): Promise<any> {
+        return this.sendCommand(`-exec-interrupt`);
     }
 }

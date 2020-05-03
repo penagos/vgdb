@@ -10,7 +10,7 @@ import {
     ContinuedEvent,
     OutputEvent
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL } from './GDB';
 import { Record } from "./parser/Record";
 
 const SCOPE_LOCAL = 1;
@@ -70,6 +70,11 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.GDB.on(EVENT_EXITED_NORMALLY, () => {
                 this.sendEvent(new TerminatedEvent());
+            });
+
+            this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
+                // TODO: handle other signals
+                this.sendEvent(new StoppedEvent('user-request', threadID));
             });
 
             response.body = response.body || {};
@@ -205,4 +210,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             break;
         }
     }
+
+	protected pauseRequest(response: DebugProtocol.PauseResponse,
+		args: DebugProtocol.PauseArguments): void {
+        this.GDB.pause().then(() => {
+            this.sendResponse(response);
+        });
+	}
 }
