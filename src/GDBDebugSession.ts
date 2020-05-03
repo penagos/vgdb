@@ -27,7 +27,9 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** Automatically stop target after launch. If not specified, target does not stop. */
 	stopOnEntry?: boolean;
 	/** enable logging the Debug Adapter Protocol */
-	trace?: boolean;
+    trace?: boolean;
+    /** Arguments to pass to inferior */
+    args?: [];
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -82,7 +84,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
-            this.GDB.spawn(args.program).then(() => {
+            this.GDB.spawn(args.program, args.args).then(() => {
                 // Success
                 this.sendResponse(response);
             }, (error) => {

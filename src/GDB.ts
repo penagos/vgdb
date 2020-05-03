@@ -45,9 +45,14 @@ export class GDB extends EventEmitter {
         this.parser = new MIParser();
     }
 
-    public spawn(program: string): Promise<any> {
+    public spawn(program: string, args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
             this.args.push(program);
+
+            // Append all user arguments as needed
+            if (args) {
+                this.args = this.args.concat(args);
+            }
 
             this.pHandle = spawn(this.path, this.args);
             this.pHandle.on('error', (err) => {
