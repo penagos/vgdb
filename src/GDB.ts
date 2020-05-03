@@ -47,11 +47,13 @@ export class GDB extends EventEmitter {
 
     public spawn(program: string, args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.args.push(program);
-
             // Append all user arguments as needed
             if (args) {
+                this.args.push('--args');
+                this.args.push(program);
                 this.args = this.args.concat(args);
+            } else {
+                this.args.push(program);
             }
 
             this.pHandle = spawn(this.path, this.args);
