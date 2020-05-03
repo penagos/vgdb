@@ -100,6 +100,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;
             response.body.supportsConfigurationDoneRequest = true;
+            response.body.supportsEvaluateForHovers = true;
 
             this.sendResponse(response);
             this.sendEvent(new InitializedEvent());
@@ -232,6 +233,18 @@ export class GDBDebugSession extends LoggingDebugSession {
                 // User is requesting evaluation of expr at debug console prompt
                 this.GDB.sendCommand(args.expression).then((result: Record) => {
                     this.sendResponse(response);
+                });
+            break;
+
+            case "hover":
+                // User has hovered over variable
+                this.GDB.evaluateExpr(args.expression).then((result: Record) => {
+					response.body =
+					{
+						result: result.getResult("value"),
+						variablesReference: 0
+					};
+					this.sendResponse(response);
                 });
             break;
         }

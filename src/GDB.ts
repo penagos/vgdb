@@ -274,6 +274,10 @@ export class GDB extends EventEmitter {
         return this.sendCommand(`-exec-run`);
     }
 
+    public evaluateExpr(expr: string): Promise<any> {
+        return this.sendCommand(`-data-evaluate-expression "${expr}"`);
+    }
+
     public getThreads(): Promise<any> {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-thread-info`).then((record: ResultRecord) => {
