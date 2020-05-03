@@ -12,6 +12,8 @@ import {
 } from 'vscode-debugadapter';
 import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL } from './GDB';
 import { Record } from "./parser/Record";
+import * as vscode from "vscode";
+import { OutputChannel } from 'vscode';
 
 const SCOPE_LOCAL = 1;
 
@@ -34,6 +36,20 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 
 export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
+    private outputChannel: OutputChannel;
+    private debug: boolean;
+
+    public constructor() {
+        super();
+        this.debug = true;
+        this.outputChannel = vscode.window.createOutputChannel("vGDB");
+    }
+
+    protected log(text: string) {
+        if (this.debug) {
+            this.outputChannel.appendLine(text);
+        }
+    }
 
     protected async initializeRequest(
         response: DebugProtocol.InitializeResponse,
@@ -74,7 +90,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
                 // TODO: handle other signals
-                this.sendEvent(new StoppedEvent('user-request', threadID));
+                this.sendEvent(new StoppedEvent('pause', threadID));
             });
 
             response.body = response.body || {};
@@ -89,6 +105,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
+            this.log(`Launching ${args.program}`);
             this.GDB.spawn(args.program, args.args).then(() => {
                 // Success
                 this.sendResponse(response);
@@ -115,8 +132,9 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.ConfigurationDoneArguments): void {
             // Once all breakpoints have been sent and synced with the debugger
             // we can start the inferior
-            this.GDB.startInferior();
-            super.configurationDoneRequest(response, args);
+            this.GDB.startInferior().then(() => {
+                super.configurationDoneRequest(response, args);
+            });
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
