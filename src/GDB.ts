@@ -5,7 +5,7 @@ import { Record } from "./parser/Record";
 import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
-import { Breakpoint } from "vscode-debugadapter";
+import { Breakpoint, Thread } from "vscode-debugadapter";
 
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 
@@ -116,6 +116,7 @@ export class GDB extends EventEmitter {
                         switch (record.getClass()) {
                             case STOPPED:
                                 let reason = record.getResult("reason");
+
                                 switch (reason) {
                                     case EVENT_BREAKPOINT_HIT:
                                         this.emit(reason, parseInt(record.getResult("thread-id")));
@@ -204,5 +205,20 @@ export class GDB extends EventEmitter {
     public startInferior(): Promise<any> {
         // Launch the debuggee target
         return this.sendCommand(`-exec-run`);
+    }
+
+    public getThreads(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-thread-info`).then((record: ResultRecord) => {
+                let threads = record.getResult("threads");
+                let threadsResult: Thread[] = [];
+
+                threads.forEach(thread => {
+                    threadsResult.push(new Thread(thread.id, thread.name));
+                });
+
+                resolve(threadsResult);
+            });
+        });
     }
 }

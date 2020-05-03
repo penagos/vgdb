@@ -67,7 +67,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): void {
             this.GDB.clearBreakpoints();
-            this.GDB.setBreakpoints((args.source.path || ""), args.breakpoints).then((bps) => {
+            this.GDB.setBreakpoints((args.source.path || ""), args.breakpoints).then(bps => {
                 response.body = {
                     breakpoints: bps
                 };
@@ -81,5 +81,14 @@ export class GDBDebugSession extends LoggingDebugSession {
             // we can start the inferior
             this.GDB.startInferior();
             super.configurationDoneRequest(response, args);
+    }
+
+    protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
+        this.GDB.getThreads().then(threads => {
+            response.body = {
+                threads: threads
+            };
+            this.sendResponse(response);
+        });
     }
 }
