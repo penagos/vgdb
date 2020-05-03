@@ -36,6 +36,9 @@ export class MIParser {
         let record;
         this.buffer = str;
 
+        // TODO: Do not log (gdb) prompt output
+        console.log(this.buffer);
+
         try {
             // ( out-of-band-record )* [ result-record ] "(gdb)" nl
             record = this.parseOutOfBandRecord();
@@ -58,9 +61,6 @@ export class MIParser {
             console.error("Parser error: " + error.message);
             throw error;
         }
-
-        // Do not log (gdb) prompt output
-        console.log(str);
 
         return record;
     }
@@ -218,7 +218,7 @@ export class MIParser {
     private parseList(): any[] {
         // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
         let match;
-        let list:any[] = [];
+        let list:any = [];
 
         // Consume first [
         this.buffer = this.buffer.substring(1);
@@ -234,7 +234,7 @@ export class MIParser {
             // Result list
             while (match = this.parseResult()) {
                 this.buffer = this.buffer.substring(1);
-                list[match[0]] = match[1];
+                list.push(match);
             }
         }
 

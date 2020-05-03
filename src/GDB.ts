@@ -5,7 +5,7 @@ import { Record } from "./parser/Record";
 import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
-import { Breakpoint, Thread } from "vscode-debugadapter";
+import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 
@@ -232,7 +232,18 @@ export class GDB extends EventEmitter {
     public getStack(threadID: number): Promise<any> {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-stack-list-frames --thread ${threadID}`).then((record: ResultRecord) => {
+                let stack = record.getResult("stack");
+                let stackFinal: StackFrame[] = [];
+                let name, src;
 
+                stack.forEach(frame => {
+                    frame = frame[1];
+                    name = frame.func + '@' + frame.addr;
+                    src = new Source(frame.file, frame.fullname);
+                    stackFinal.push(new StackFrame(threadID + parseInt(frame.level), name, src, parseInt(frame.line)));
+                });
+
+                resolve(stackFinal);
             });
         });
     }

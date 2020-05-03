@@ -5,9 +5,12 @@ import {
     TerminatedEvent,
     StoppedEvent,
     StackFrame,
-    Thread
+    Thread,
+    Scope
 } from 'vscode-debugadapter';
 import { GDB, EVENT_BREAKPOINT_HIT } from './GDB';
+
+const SCOPE_LOCAL = 1;
 
 /**
  * This interface describes the mock-debug specific launch attributes
@@ -108,4 +111,15 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
             });
     }
+
+    protected scopesRequest(response: DebugProtocol.ScopesResponse,
+        args: DebugProtocol.ScopesArguments): void {
+
+		response.body = {
+			scopes: [
+				new Scope("Local", SCOPE_LOCAL, false)
+			]
+		};
+		this.sendResponse(response);
+	}
 }
