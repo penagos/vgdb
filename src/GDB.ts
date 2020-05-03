@@ -16,6 +16,7 @@ export class GDB extends EventEmitter {
     private parser: MIParser;
     private token: number;
     private handlers: { [token: number]: (record: Record) => any };
+    private stopped: boolean;
 
     // Output buffering for stdout pipe
     private ob: string;
@@ -30,6 +31,7 @@ export class GDB extends EventEmitter {
         this.args = ['--interpreter=mi2', '-q'];
 
         this.token = 0;
+        this.stopped = false;
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
@@ -115,6 +117,7 @@ export class GDB extends EventEmitter {
                     case AsyncRecordType.EXEC:
                         switch (record.getClass()) {
                             case STOPPED:
+                                this.stopped = true;
                                 let reason = record.getResult("reason");
 
                                 switch (reason) {
@@ -128,7 +131,7 @@ export class GDB extends EventEmitter {
                             break;
 
                             case RUNNING:
-
+                                this.stopped = false;
                             break;
                         }
                     break;
@@ -214,10 +217,22 @@ export class GDB extends EventEmitter {
                 let threadsResult: Thread[] = [];
 
                 threads.forEach(thread => {
-                    threadsResult.push(new Thread(thread.id, thread.name));
+                    threadsResult.push(new Thread(parseInt(thread.id), thread.name));
                 });
 
                 resolve(threadsResult);
+            });
+        });
+    }
+
+    public isStopped(): boolean {
+        return this.stopped;
+    }
+
+    public getStack(threadID: number): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-stack-list-frames --thread ${threadID}`).then((record: ResultRecord) => {
+
             });
         });
     }

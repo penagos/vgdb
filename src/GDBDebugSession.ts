@@ -3,7 +3,9 @@ import {
     InitializedEvent,
 	LoggingDebugSession,
     TerminatedEvent,
-    StoppedEvent
+    StoppedEvent,
+    StackFrame,
+    Thread
 } from 'vscode-debugadapter';
 import { GDB, EVENT_BREAKPOINT_HIT } from './GDB';
 
@@ -84,11 +86,26 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-        this.GDB.getThreads().then(threads => {
-            response.body = {
-                threads: threads
-            };
+        if (this.GDB.isStopped()) {
+            this.GDB.getThreads().then((threads: Thread[]) => {
+                response.body = {
+                    threads: threads
+                };
+                this.sendResponse(response);
+            });
+        } else {
             this.sendResponse(response);
-        });
+        } 
+    }
+
+    protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,
+        args: DebugProtocol.StackTraceArguments): void {
+            this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
+                response.body = {
+                    stackFrames: stack,
+                    totalFrames: stack.length
+                };
+                this.sendResponse(response);
+            });
     }
 }
