@@ -137,6 +137,22 @@ export class GDBDebugSession extends LoggingDebugSession {
         });
     }
 
+    protected stepInRequest(response: DebugProtocol.StepInResponse,
+        args: DebugProtocol.StepInArguments): void {
+
+        this.GDB.stepIn(args.threadId).then(() => {
+            this.sendResponse(response);
+        });
+    }
+
+    protected stepOutRequest(response: DebugProtocol.StepOutResponse,
+        args: DebugProtocol.StepOutArguments): void {
+
+        this.GDB.stepOut(args.threadId).then(() => {
+            this.sendResponse(response);
+        });
+    }
+
     protected continueRequest(response: DebugProtocol.ContinueResponse,
         args: DebugProtocol.ContinueArguments): void {
 

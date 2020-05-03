@@ -261,4 +261,12 @@ export class GDB extends EventEmitter {
     public continue(threadID: number): Promise<any> {
         return this.sendCommand(`-exec-continue --thread ${threadID}`);
     }
+
+    public stepIn(threadID: number): Promise<any> {
+        return this.sendCommand(`-exec-step --thread ${threadID}`);
+    }
+
+    public stepOut(threadID: number): Promise<any> {
+        return this.sendCommand(`-exec-finish --thread ${threadID}`);
+    }
 }
