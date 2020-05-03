@@ -6,6 +6,7 @@ import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
+import { OutputChannel } from "vscode";
 
 // GDB stop reasons
 export const EVENT_OUTPUT = "output";
@@ -25,6 +26,8 @@ export class GDB extends EventEmitter {
     private handlers: { [token: number]: (record: Record) => any };
     private threadID: number;
     private stopped: boolean;
+    private outputChannel: OutputChannel;
+    private debug: boolean;
 
     // Output buffering for stdout pipe
     private ob: string;
@@ -32,18 +35,26 @@ export class GDB extends EventEmitter {
     // Track if GDB is initialized
     private initialized: boolean;
 
-    public constructor() {
+    public constructor(outputChannel: OutputChannel) {
         super();
 
+        this.outputChannel = outputChannel;
         this.path = 'gdb';
         this.args = ['--interpreter=mi2', '-q'];
 
+        this.debug = true;
         this.token = 0;
         this.threadID = -1;
         this.stopped = false;
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
+    }
+
+    private log(text: string) {
+        if (this.debug) {
+            this.outputChannel.appendLine(text);
+        }
     }
 
     public spawn(program: string, args: ([] | undefined)): Promise<any> {
@@ -75,6 +86,7 @@ export class GDB extends EventEmitter {
             const token = ++this.token;
             cmd = token + cmd;
 
+            this.log(cmd);
             console.warn(cmd);
             this.pHandle.stdin.write(cmd + '\n');
 
@@ -121,7 +133,6 @@ export class GDB extends EventEmitter {
                         // Allow relaying SIGINT signals to inferior
                         // TODO: revisit this
                         this.sendCommand(`-gdb-set target-async on`);
-                        this.sendCommand(`-interpreter-exec console "monitor halt"`);
                         this.setInitialized();
                     }
                 } catch(error) {

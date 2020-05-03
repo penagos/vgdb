@@ -94,6 +94,11 @@
 								"type": "array",
 								"description": "Arguments to pass to inferior",
 								"default": []
+							},
+							"cwd": {
+								"type": "string",
+								"description": "Working directory of the target",
+								"default": "${workspaceFolder}"
 							}
 						}
 					}

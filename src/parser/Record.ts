@@ -1,5 +1,6 @@
 
 export abstract class Record {
+    public response: string;
     protected token: number;
     protected abstract type: any;
     protected results: Map<string, any>;

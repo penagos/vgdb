@@ -61,6 +61,11 @@ export class MIParser {
             throw error;
         }
 
+        // DEBUG only
+        if (record) {
+            record.response = str;
+        }
+
         return record;
     }
 

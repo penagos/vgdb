@@ -32,6 +32,8 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     trace?: boolean;
     /** Arguments to pass to inferior */
     args?: [];
+    /** Launch directory */
+    cwd: string;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -43,6 +45,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         super();
         this.debug = true;
         this.outputChannel = vscode.window.createOutputChannel("vGDB");
+        this.outputChannel.clear();
     }
 
     protected log(text: string) {
@@ -54,7 +57,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async initializeRequest(
         response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
-            this.GDB = new GDB();
+            this.GDB = new GDB(this.outputChannel);
 
             // Bind error handler for unexpected GDB errors
             this.GDB.on('error', (tid: number) => {
@@ -105,6 +108,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
+            this.log(`CWD is ${args.cwd}`);
             this.log(`Launching ${args.program}`);
             this.GDB.spawn(args.program, args.args).then(() => {
                 // Success
@@ -119,6 +123,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected setBreakPointsRequest (
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): void {
+            this.log(`Breakpoints request`);
             this.GDB.clearBreakpoints();
             this.GDB.setBreakpoints((args.source.path || ""), args.breakpoints).then(bps => {
                 response.body = {
@@ -138,6 +143,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
+        this.log(`Threads request`);
         if (this.GDB.isStopped()) {
             this.GDB.getThreads().then((threads: Thread[]) => {
                 response.body = {
@@ -152,6 +158,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments): void {
+            this.log(`Stacktrace request`);
             this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
                 response.body = {
                     stackFrames: stack,
@@ -163,20 +170,21 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments): void {
-
-        // We will always create the same scopes regardless of the state of the
-        // debugger
-		response.body = {
-			scopes: [
-				new Scope("Local", SCOPE_LOCAL, false)
-			]
-		};
-		this.sendResponse(response);
+            this.log(`Scopes request`);
+            // We will always create the same scopes regardless of the state of the
+            // debugger
+            response.body = {
+                scopes: [
+                    new Scope("Local", SCOPE_LOCAL, false)
+                ]
+            };
+            this.sendResponse(response);
     }
 
     protected variablesRequest(response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments,
         request?: DebugProtocol.Request) {
+            this.log(`Variables request`);
             // For now we assume all requests are for SCOPE_LOCAL -- will need to
             // be revisited once support for additional scopes is added
             this.GDB.getVars().then(() => {
@@ -231,8 +239,9 @@ export class GDBDebugSession extends LoggingDebugSession {
 
 	protected pauseRequest(response: DebugProtocol.PauseResponse,
 		args: DebugProtocol.PauseArguments): void {
-        this.GDB.pause().then(() => {
-            this.sendResponse(response);
-        });
+            this.log(`Pause request`);
+            this.GDB.pause().then(() => {
+                this.sendResponse(response);
+            });
 	}
 }
