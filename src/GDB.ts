@@ -254,6 +254,12 @@ export class GDB extends EventEmitter {
         });
     }
 
+    public getVars(): Promise<any> {
+        return new Promise((resolve, reject) => {
+
+        });
+    }
+
     public next(threadID: number): Promise<any> {
         return this.sendCommand(`-exec-next --thread ${threadID}`);
     }

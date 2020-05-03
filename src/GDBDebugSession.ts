@@ -129,6 +129,16 @@ export class GDBDebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
     }
 
+    protected variablesRequest(response: DebugProtocol.VariablesResponse,
+        args: DebugProtocol.VariablesArguments,
+        request?: DebugProtocol.Request) {
+            // For now we assume all requests are for SCOPE_LOCAL -- will need to
+            // be revisited once support for additional scopes is added
+            this.GDB.getVars().then(() => {
+                this.sendResponse(response);
+            });
+    }
+
     protected nextRequest(response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments): void {
 
