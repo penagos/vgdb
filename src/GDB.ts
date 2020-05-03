@@ -7,9 +7,11 @@ import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 
+// GDB stop reasons
 export const EVENT_RUNNING = "running";
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
+export const EVENT_EXITED_NORMALLY = "exited-normally";
 
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
@@ -133,6 +135,10 @@ export class GDB extends EventEmitter {
 
                                     case EVENT_END_STEPPING_RANGE:
                                         this.emit(reason, this.threadID);
+                                    break;
+
+                                    case EVENT_EXITED_NORMALLY:
+                                        this.emit(reason)
                                     break;
 
                                     default:

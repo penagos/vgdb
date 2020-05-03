@@ -9,7 +9,7 @@ import {
     Scope,
     ContinuedEvent
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY } from './GDB';
 
 const SCOPE_LOCAL = 1;
 
@@ -53,6 +53,10 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
                 this.sendEvent(new StoppedEvent("step", threadID));
+            });
+
+            this.GDB.on(EVENT_EXITED_NORMALLY, () => {
+                this.sendEvent(new TerminatedEvent());
             });
 
             response.body = response.body || {};
