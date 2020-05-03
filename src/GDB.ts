@@ -247,4 +247,16 @@ export class GDB extends EventEmitter {
             });
         });
     }
+
+    public next(): Promise<any> {
+        return new Promise((resolve, reject) => {
+
+        });
+    }
+
+    public continue(): Promise<any> {
+        return new Promise((resolve, reject) => {
+
+        });
+    }
 }

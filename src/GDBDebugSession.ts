@@ -115,11 +115,29 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments): void {
 
+        // We will always create the same scopes regardless of the state of the
+        // debugger
 		response.body = {
 			scopes: [
 				new Scope("Local", SCOPE_LOCAL, false)
 			]
 		};
 		this.sendResponse(response);
+    }
+
+    protected nextRequest(response: DebugProtocol.NextResponse,
+        args: DebugProtocol.NextArguments): void {
+
+        this.GDB.next().then(() => {
+            this.sendResponse(response);
+        });
+    }
+
+    protected continueRequest(response: DebugProtocol.ContinueResponse,
+        args: DebugProtocol.ContinueArguments): void {
+
+        this.GDB.continue().then(() => {
+            this.sendResponse(response);
+        });
 	}
 }
