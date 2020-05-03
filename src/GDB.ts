@@ -7,6 +7,7 @@ import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 
+export const EVENT_RUNNING = "running";
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
 
@@ -17,6 +18,7 @@ export class GDB extends EventEmitter {
     private parser: MIParser;
     private token: number;
     private handlers: { [token: number]: (record: Record) => any };
+    private threadID: number;
     private stopped: boolean;
 
     // Output buffering for stdout pipe
@@ -32,6 +34,7 @@ export class GDB extends EventEmitter {
         this.args = ['--interpreter=mi2', '-q'];
 
         this.token = 0;
+        this.threadID = -1;
         this.stopped = false;
         this.ob = "";
         this.handlers = [];
@@ -120,15 +123,16 @@ export class GDB extends EventEmitter {
                         switch (record.getClass()) {
                             case STOPPED:
                                 this.stopped = true;
+                                this.threadID = parseInt(record.getResult("thread-id"));
                                 let reason = record.getResult("reason");
 
                                 switch (reason) {
                                     case EVENT_BREAKPOINT_HIT:
-                                        this.emit(reason, parseInt(record.getResult("thread-id")));
+                                        this.emit(reason, this.threadID);
                                     break;
 
                                     case EVENT_END_STEPPING_RANGE:
-                                        this.emit(reason, parseInt(record.getResult("thread-id")));
+                                        this.emit(reason, this.threadID);
                                     break;
 
                                     default:
@@ -137,7 +141,19 @@ export class GDB extends EventEmitter {
                             break;
 
                             case RUNNING:
+                                let tid:number, all: boolean;
                                 this.stopped = false;
+                                all = false;
+
+                                // If threadID is not a number, this means all threads have continued
+                                tid = parseInt(record.getResult("thread-id"));
+                                if (tid == NaN) {
+                                    tid = this.threadID;
+                                    all = true;
+                                }
+
+                                // For now we assume all threads resume execution
+                                this.emit(EVENT_RUNNING, this.threadID, all);
                             break;
                         }
                     break;
