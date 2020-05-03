@@ -11,6 +11,7 @@ import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 export const EVENT_RUNNING = "running";
 export const EVENT_BREAKPOINT_HIT = "breakpoint-hit";
 export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
+export const EVENT_FUNCTION_FINISHED = "function-finished";
 export const EVENT_EXITED_NORMALLY = "exited-normally";
 
 export class GDB extends EventEmitter {
@@ -135,6 +136,10 @@ export class GDB extends EventEmitter {
 
                                     case EVENT_END_STEPPING_RANGE:
                                         this.emit(reason, this.threadID);
+                                    break;
+
+                                    case EVENT_FUNCTION_FINISHED:
+                                        this.emit(EVENT_FUNCTION_FINISHED, this.threadID);
                                     break;
 
                                     case EVENT_EXITED_NORMALLY:
