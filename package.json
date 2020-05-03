@@ -89,6 +89,11 @@
 								"type": "boolean",
 								"description": "Enable logging of the Debug Adapter Protocol.",
 								"default": true
+							},
+							"args": {
+								"type": "array",
+								"description": "Arguments to pass to inferior",
+								"default": []
 							}
 						}
 					}
