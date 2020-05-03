@@ -60,7 +60,7 @@ export class GDB extends EventEmitter {
             this.pHandle.on('error', (err) => {
                 // Child process cannot be started (or killed)
                 console.error('Failed to start GDB process');
-                process.exit(1);
+                this.emit('error');
             });
 
             this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
@@ -212,6 +212,7 @@ export class GDB extends EventEmitter {
     private stderrHandler(data) {
         let str = data.toString('utf8');
         console.error(str);
+        this.emit('error');
     }
 
     public clearBreakpoints(): Promise<any>  {
