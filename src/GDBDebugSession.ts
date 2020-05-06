@@ -236,10 +236,10 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             case "hover":
                 // User has hovered over variable
-                this.GDB.evaluateExpr(args.expression).then((result: Record) => {
+                this.GDB.evaluateExpr(args.expression).then((result: any) => {
 					response.body =
 					{
-						result: result.getResult("value"),
+						result: result,
 						variablesReference: 0
 					};
 					this.sendResponse(response);
