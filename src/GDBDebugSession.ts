@@ -10,12 +10,10 @@ import {
     ContinuedEvent,
     OutputEvent
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL } from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
-
-const SCOPE_LOCAL = 1;
 
 /**
  * This interface describes the mock-debug specific launch attributes
@@ -188,7 +186,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.log(`Variables request`);
             // For now we assume all requests are for SCOPE_LOCAL -- will need to
             // be revisited once support for additional scopes is added
-            this.GDB.getVars().then(() => {
+            this.GDB.getVars(args.variablesReference).then(() => {
                 this.sendResponse(response);
             });
     }

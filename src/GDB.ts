@@ -17,6 +17,8 @@ export const EVENT_FUNCTION_FINISHED = "function-finished";
 export const EVENT_EXITED_NORMALLY = "exited-normally";
 export const EVENT_SIGNAL = "signal-received";
 
+export const SCOPE_LOCAL = 1;
+
 export class GDB extends EventEmitter {
     private pHandle: ChildProcess;
     private path: string;
@@ -316,9 +318,16 @@ export class GDB extends EventEmitter {
         });
     }
 
-    public getVars(): Promise<any> {
+    public getVars(reference: number): Promise<any> {
         return new Promise((resolve, reject) => {
+            switch (reference) {
+                case SCOPE_LOCAL:
+                
+                break;
 
+                default:
+                    throw new Error(`Unknown variable reference ${reference}`);
+            }
         });
     }
 
