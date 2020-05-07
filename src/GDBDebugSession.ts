@@ -33,6 +33,8 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     args?: [];
     /** Launch directory */
     cwd: string;
+    /** Debugger path */
+    debugger: string;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -110,7 +112,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Only send initialized response once GDB is fully spawned
             this.log(`CWD is ${args.cwd}`);
             this.log(`Launching ${args.program}`);
-            this.GDB.spawn(args.program, args.args).then(() => {
+            this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 // Success
                 this.sendResponse(response);
             }, (error) => {

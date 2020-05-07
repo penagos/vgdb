@@ -59,7 +59,7 @@ export class GDB extends EventEmitter {
         }
     }
 
-    public spawn(program: string, args: ([] | undefined)): Promise<any> {
+    public spawn(debuggerPath: string, program: string, args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
             // Append all user arguments as needed
             if (args) {
@@ -68,6 +68,10 @@ export class GDB extends EventEmitter {
                 this.args = this.args.concat(args);
             } else {
                 this.args.push(program);
+            }
+
+            if (debuggerPath !== undefined) {
+                this.path = debuggerPath;
             }
 
             this.pHandle = spawn(this.path, this.args);

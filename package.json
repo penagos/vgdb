@@ -104,7 +104,12 @@
                                 "type": "boolean",
                                 "description": "If true, debug target will spawn a new terminal window",
                                 "default": false
-                            }
+							},
+							"debugger": {
+								"type": "string",
+								"description": "Path to GDB executable",
+								"default": "gdb"
+							}
 						}
 					}
 				},
