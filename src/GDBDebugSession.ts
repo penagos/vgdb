@@ -8,7 +8,8 @@ import {
     Thread,
     Scope,
     ContinuedEvent,
-    OutputEvent
+    OutputEvent,
+    Variable
 } from 'vscode-debugadapter';
 import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL } from './GDB';
 import { Record } from "./parser/Record";
@@ -186,7 +187,17 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.log(`Variables request`);
             // For now we assume all requests are for SCOPE_LOCAL -- will need to
             // be revisited once support for additional scopes is added
-            this.GDB.getVars(args.variablesReference).then(() => {
+            this.GDB.getVars(args.variablesReference).then((vars: any[]) => {
+                let variables:Variable[] = [];
+
+                vars.forEach(variable => {
+                    variables.push(new Variable(variable.name, variable.value));
+                });
+
+                response.body = {
+                    variables: variables
+                };
+
                 this.sendResponse(response);
             });
     }

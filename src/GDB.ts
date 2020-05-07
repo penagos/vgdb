@@ -326,7 +326,9 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             switch (reference) {
                 case SCOPE_LOCAL:
-                
+                    this.sendCommand(`-stack-list-variables --all-values`).then((record: Record) => {
+                        resolve(record.getResult("variables"));
+                    });
                 break;
 
                 default:
