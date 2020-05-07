@@ -36,9 +36,6 @@ export class MIParser {
         let record;
         this.buffer = str;
 
-        // TODO: Do not log (gdb) prompt output
-        console.log(this.buffer);
-
         try {
             // ( out-of-band-record )* [ result-record ] "(gdb)" nl
             record = this.parseOutOfBandRecord();

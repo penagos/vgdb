@@ -30,6 +30,7 @@ export class GDB extends EventEmitter {
     private stopped: boolean;
     private outputChannel: OutputChannel;
     private debug: boolean;
+    private program: string;
 
     // Output buffering for stdout pipe
     private ob: string;
@@ -51,6 +52,7 @@ export class GDB extends EventEmitter {
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
+        this.program = "";
     }
 
     private log(text: string) {
@@ -60,30 +62,35 @@ export class GDB extends EventEmitter {
     }
 
     public spawn(debuggerPath: string, program: string, args: ([] | undefined)): Promise<any> {
-        return new Promise((resolve, reject) => {
-            // Append all user arguments as needed
-            if (args) {
-                this.args.push('--args');
-                this.args.push(program);
-                this.args = this.args.concat(args);
-            } else {
-                this.args.push(program);
-            }
+        // Append all user arguments as needed
+        this.program = program;
 
-            if (debuggerPath !== undefined) {
-                this.path = debuggerPath;
-            }
+        if (args) {
+            this.args.push('--args');
+            this.args.push(program);
+            this.args = this.args.concat(args);
+        } else {
+            this.args.push(program);
+        }
 
-            this.pHandle = spawn(this.path, this.args);
-            this.pHandle.on('error', (err) => {
-                // Child process cannot be started (or killed)
-                console.error('Failed to start GDB process');
-                this.emit('error');
-            });
+        if (debuggerPath !== undefined) {
+            this.path = debuggerPath;
+        }
 
-            this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
-            this.pHandle.stderr.on('data', this.stderrHandler.bind(this));
+        this.pHandle = spawn(this.path, this.args);
+        this.pHandle.on('error', (err) => {
+            // Child process cannot be started (or killed)
+            console.error('Failed to start GDB process');
+            this.emit('error');
         });
+
+        this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
+        this.pHandle.stderr.on('data', this.stderrHandler.bind(this));
+
+        // Since these requests will be issued in-order it suffices to spin
+        // on the second request
+        this.sendCommand(`-gdb-set target-async on`);
+        return this.sendCommand(`-file-exec-and-symbols ${this.program}`);
     }
 
     // Send an MI command to GDB
@@ -97,6 +104,8 @@ export class GDB extends EventEmitter {
             this.pHandle.stdin.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
+                this.log(record.response);
+                console.log(record.response);
 				resolve(record);
 			};
         });
@@ -132,13 +141,8 @@ export class GDB extends EventEmitter {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
-
-                        // Forward output to debug console
                         this.emit(EVENT_OUTPUT, line + '\n');
                     } else if (!this.isInitialized()) {
-                        // Allow relaying SIGINT signals to inferior
-                        // TODO: revisit this
-                        this.sendCommand(`-gdb-set target-async on`);
                         this.setInitialized();
                     }
                 } catch(error) {

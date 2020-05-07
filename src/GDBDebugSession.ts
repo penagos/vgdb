@@ -41,6 +41,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
     private debug: boolean;
+    private cwd: string;
 
     public constructor() {
         super();
@@ -110,7 +111,8 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
-            this.log(`CWD is ${args.cwd}`);
+            this.cwd = args.cwd;
+            this.log(`CWD is ${this.cwd}`);
             this.log(`Launching ${args.program}`);
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 // Success
@@ -127,7 +129,16 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.SetBreakpointsArguments): void {
             this.log(`Breakpoints request`);
             this.GDB.clearBreakpoints();
-            this.GDB.setBreakpoints((args.source.path || ""), args.breakpoints).then(bps => {
+
+            // If relative paths are to be used, strip out the CWD from the source path
+            let sourcePath = args.source.path || "";
+            sourcePath = sourcePath.replace(this.cwd, "");
+
+            if (sourcePath[0] == '/') {
+                sourcePath = sourcePath.substr(1);
+            }
+
+            this.GDB.setBreakpoints(sourcePath, args.breakpoints).then(bps => {
                 response.body = {
                     breakpoints: bps
                 };
