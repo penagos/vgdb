@@ -77,6 +77,7 @@ export class GDB extends EventEmitter {
             this.path = debuggerPath;
         }
 
+        this.log(`Launching ${this.path} ${this.args.join(' ')}`);
         this.pHandle = spawn(this.path, this.args);
         this.pHandle.on('error', (err) => {
             // Child process cannot be started (or killed)

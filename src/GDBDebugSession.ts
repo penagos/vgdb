@@ -113,7 +113,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Only send initialized response once GDB is fully spawned
             this.cwd = args.cwd;
             this.log(`CWD is ${this.cwd}`);
-            this.log(`Launching ${args.program}`);
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 // Success
                 this.sendResponse(response);
