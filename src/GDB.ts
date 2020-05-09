@@ -81,7 +81,7 @@ export class GDB extends EventEmitter {
         this.pHandle = spawn(this.path, this.args);
         this.pHandle.on('error', (err) => {
             // Child process cannot be started (or killed)
-            console.error('Failed to start GDB process');
+            console.error(`Failed to start GDB process (${this.program})`);
             this.emit('error');
         });
 
@@ -90,8 +90,7 @@ export class GDB extends EventEmitter {
 
         // Since these requests will be issued in-order it suffices to spin
         // on the second request
-        this.sendCommand(`-gdb-set target-async on`);
-        return this.sendCommand(`-file-exec-and-symbols ${this.program}`);
+        return this.sendCommand(`-gdb-set target-async on`);
     }
 
     // Send an MI command to GDB
@@ -106,7 +105,7 @@ export class GDB extends EventEmitter {
 
             this.handlers[token] = (record: Record) => {
                 this.log(record.response);
-                console.log(record.response);
+                //console.log(record.response);
 				resolve(record);
 			};
         });
@@ -142,7 +141,11 @@ export class GDB extends EventEmitter {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
-                        this.emit(EVENT_OUTPUT, line + '\n');
+
+                        // Do not print =AsyncRecords -- too many!
+                        if (record.constructor != AsyncRecord) {
+                            this.emit(EVENT_OUTPUT, line + '\n');
+                        }
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
                     }
@@ -261,7 +264,9 @@ export class GDB extends EventEmitter {
 
             if (bps) {
                 bps.forEach((bp) => {
-                    let promise = this.sendCommand(`-break-insert ${sourceFile}:${bp.line}`);
+                    // TODO: move -f flag to setting. We only need this for targets that rely
+                    // on shared libraries which are not immediately loaded on inferior start
+                    let promise = this.sendCommand(`-break-insert -f ${sourceFile}:${bp.line}`);
                     bpsPending.push(promise);
                     promise.then((record: ResultRecord) => {
                         let bpInfo = record.getResult("bkpt");
