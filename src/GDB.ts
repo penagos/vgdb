@@ -265,9 +265,21 @@ export class GDB extends EventEmitter {
                     let promise = this.sendCommand(`-break-insert -f ${sourceFile}:${bp.line}`);
                     bpsPending.push(promise);
                     promise.then((record: ResultRecord) => {
+                        // If this is a conditional breakpoint we must relay the
+                        // expression to GDB and update the breakpoint
                         let bpInfo = record.getResult("bkpt");
-                        let verifiedBp = new Breakpoint(true, bpInfo.line);
-                        bpsVerified.push(verifiedBp);
+
+                        // Update promise
+                        if (bp.condition) {
+                            promise = this.sendCommand(`-break-condition ${bpInfo.number} ${bp.condition}`);
+                            promise.then((record: ResultRecord) => {
+                                let verifiedBp = new Breakpoint(true, bpInfo.line);
+                                bpsVerified.push(verifiedBp);
+                            });
+                        } else {
+                            let verifiedBp = new Breakpoint(true, bpInfo.line);
+                            bpsVerified.push(verifiedBp);
+                        }
                     });
                 });
 
