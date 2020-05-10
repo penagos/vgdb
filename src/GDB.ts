@@ -303,6 +303,8 @@ export class GDB extends EventEmitter {
             let cmd = `-data-evaluate-expression`;
 
             if (frameID) {
+                // "normalize" frameID with threadID
+                frameID = frameID - this.threadID + 1;
                 cmd += ` --frame ${frameID} --thread ${this.threadID}`;
             }
 
@@ -322,6 +324,8 @@ export class GDB extends EventEmitter {
             let cmd = `-interpreter-exec`;
 
             if (frameID) {
+                // "normalize" frameID with threadID
+                frameID = frameID - this.threadID + 1;
                 cmd += ` --frame ${frameID} --thread ${this.threadID}`;
             }
 
@@ -361,7 +365,7 @@ export class GDB extends EventEmitter {
 
                 stack.forEach(frame => {
                     frame = frame[1];
-                    name = frame.func + '@' + frame.addr;
+                    name = '[' + parseInt(frame.level) + '] ' + frame.func + '@' + frame.addr;
                     src = new Source(frame.file, frame.fullname);
                     stackFinal.push(new StackFrame(threadID + parseInt(frame.level), name, src, parseInt(frame.line)));
                 });
