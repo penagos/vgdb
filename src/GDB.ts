@@ -298,9 +298,36 @@ export class GDB extends EventEmitter {
         return this.sendCommand(`-exec-run`);
     }
 
-    public evaluateExpr(expr: string): Promise<any> {
+    public evaluateExpr(expr: string, frameID?: number): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.sendCommand(`-data-evaluate-expression "${expr}"`).then((record: ResultRecord) => {
+            let cmd = `-data-evaluate-expression`;
+
+            if (frameID) {
+                cmd += ` --frame ${frameID} --thread ${this.threadID}`;
+            }
+
+            cmd += ` "${expr}"`;
+
+            this.sendCommand(cmd).then((record: ResultRecord) => {
+                resolve(record.getResult("value"));
+            });
+        });
+    }
+
+    // This is a little different than the evaluate expr fcn as the expr to be
+    // evaluated may be composed of various calls and other gdb commands, so
+    // we pipe it as if the user would have typed it at the CL
+    public execUserCmd(expr: string, frameID?: number): Promise<any> {
+        return new Promise((resolve, reject) => {
+            let cmd = `-interpreter-exec`;
+
+            if (frameID) {
+                cmd += ` --frame ${frameID} --thread ${this.threadID}`;
+            }
+
+            cmd += ` console "${expr}"`;
+
+            this.sendCommand(cmd).then((record: ResultRecord) => {
                 resolve(record.getResult("value"));
             });
         });

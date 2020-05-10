@@ -249,6 +249,11 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected evaluateRequest(response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments): void {
 
+        // GDB enumerates frames starting at 0
+        if (args.frameId) {
+            --args.frameId;
+        }
+
         switch (args.context) {
             case "repl":
                 // User is requesting evaluation of expr at debug console prompt.
@@ -256,7 +261,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 // to trigger an interrupt, issue the command, and continue execution
                 if (!this.GDB.isStopped()) {
                     this.GDB.pause().then(() => {
-                        this.GDB.sendCommand(args.expression).then((result: Record) => {
+                        this.GDB.execUserCmd(args.expression, args.frameId).then((result: Record) => {
 
                             // continue execution
                             this.GDB.continue().then(() => {
@@ -265,7 +270,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         });
                     });
                 } else {
-                    this.GDB.sendCommand(args.expression).then((result: Record) => {
+                    this.GDB.execUserCmd(args.expression, args.frameId).then((result: Record) => {
                         this.sendResponse(response);
                     });
                 }
@@ -274,7 +279,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             case "hover":
                 // User has hovered over variable
-                this.GDB.evaluateExpr(args.expression).then((result: any) => {
+                this.GDB.evaluateExpr(args.expression, args.frameId).then((result: any) => {
 					response.body =
 					{
 						result: result,
