@@ -105,7 +105,7 @@ export class GDB extends EventEmitter {
 
             this.handlers[token] = (record: Record) => {
                 this.log(record.response);
-                //console.log(record.response);
+                console.log(record.response);
 				resolve(record);
 			};
         });
@@ -141,11 +141,7 @@ export class GDB extends EventEmitter {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
-
-                        // Do not print =AsyncRecords -- too many!
-                        if (record.constructor != AsyncRecord) {
-                            this.emit(EVENT_OUTPUT, line + '\n');
-                        }
+                        this.emit(EVENT_OUTPUT, line + '\n');
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
                     }
@@ -355,8 +351,12 @@ export class GDB extends EventEmitter {
         return this.sendCommand(`-exec-next --thread ${threadID}`);
     }
 
-    public continue(threadID: number): Promise<any> {
-        return this.sendCommand(`-exec-continue --thread ${threadID}`);
+    public continue(threadID?: number): Promise<any> {
+        if (threadID) {
+            return this.sendCommand(`-exec-continue --thread ${threadID}`);
+        } else {
+            return this.sendCommand(`-exec-continue`);
+        }
     }
 
     public stepIn(threadID: number): Promise<any> {

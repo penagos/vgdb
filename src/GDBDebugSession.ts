@@ -251,10 +251,25 @@ export class GDBDebugSession extends LoggingDebugSession {
 
         switch (args.context) {
             case "repl":
-                // User is requesting evaluation of expr at debug console prompt
-                this.GDB.sendCommand(args.expression).then((result: Record) => {
-                    this.sendResponse(response);
-                });
+                // User is requesting evaluation of expr at debug console prompt.
+                // We cannot simply send it while the process is running -- we need
+                // to trigger an interrupt, issue the command, and continue execution
+                if (!this.GDB.isStopped()) {
+                    this.GDB.pause().then(() => {
+                        this.GDB.sendCommand(args.expression).then((result: Record) => {
+
+                            // continue execution
+                            this.GDB.continue().then(() => {
+                                this.sendResponse(response);
+                            });
+                        });
+                    });
+                } else {
+                    this.GDB.sendCommand(args.expression).then((result: Record) => {
+                        this.sendResponse(response);
+                    });
+                }
+
             break;
 
             case "hover":
