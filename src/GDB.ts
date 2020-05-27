@@ -107,8 +107,8 @@ export class GDB extends EventEmitter {
             this.pHandle.stdin.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
-                this.log(record.response);
-                console.log(record.response);
+                this.log(record.prettyPrint());
+                console.log(record.prettyPrint());
 				resolve(record);
 			};
         });

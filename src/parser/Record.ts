@@ -38,4 +38,9 @@ export abstract class Record {
     public getResult(key: string) {
         return this.results[key];
     }
+
+    // Strip slashes, remove token identifier
+    public prettyPrint() {
+        return this.response.replace(/\\/g, '');
+    }
 };
