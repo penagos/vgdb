@@ -11,7 +11,7 @@ import {
     OutputEvent,
     Variable
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED } from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
@@ -98,6 +98,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new StoppedEvent('pause', threadID));
             });
 
+            this.GDB.on(EVENT_PAUSED, () => {
+                this.sendEvent(new StoppedEvent('pause', 1));
+            });
+
             response.body = response.body || {};
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;
@@ -174,7 +178,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
                 response.body = {
                     stackFrames: stack,
-                    totalFrames: stack.length
+                    totalFrames: stack.length - 1
                 };
                 this.sendResponse(response);
             });
@@ -182,7 +186,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments): void {
-            this.log(`Scopes request`);
+            this.log(`Scopes request (frameID is ${args.frameId})`);
             // We will always create the same scopes regardless of the state of the
             // debugger
             response.body = {

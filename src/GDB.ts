@@ -16,6 +16,7 @@ export const EVENT_END_STEPPING_RANGE = "end-stepping-range";
 export const EVENT_FUNCTION_FINISHED = "function-finished";
 export const EVENT_EXITED_NORMALLY = "exited-normally";
 export const EVENT_SIGNAL = "signal-received";
+export const EVENT_PAUSED = "paused";
 
 export const SCOPE_LOCAL = 1;
 
@@ -228,6 +229,11 @@ export class GDB extends EventEmitter {
                     if (handler) {
                         handler(record);
                         delete this.handlers[record.getToken()];
+                    } else {
+                        // There could be instances where we should fire DAP
+                        // events even if the request did not originally contain
+                        // a handler. For example, up/down should correctly move
+                        // the active stack frame in VSCode
                     }
                 }
             break;
@@ -324,6 +330,12 @@ export class GDB extends EventEmitter {
             let cmd = `-interpreter-exec`;
 
             if (frameID) {
+                if (expr == "up") {
+                    ++frameID;
+                } else if (expr == "down") {
+                    --frameID;
+                }
+
                 // "normalize" frameID with threadID
                 frameID = frameID - this.threadID + 1;
                 cmd += ` --frame ${frameID} --thread ${this.threadID}`;
@@ -334,6 +346,13 @@ export class GDB extends EventEmitter {
             this.sendCommand(cmd).then((record: ResultRecord) => {
                 resolve(record.getResult("value"));
             });
+
+            // If this was an up or down command, send a continued and paused
+            // event to trick VSCode into re-requesting the stacktrace
+            if (expr == "up" || expr == "down") {
+                this.emit(EVENT_RUNNING, this.threadID, true);
+                this.emit(EVENT_PAUSED);
+            }
         });
     }
 
@@ -365,7 +384,8 @@ export class GDB extends EventEmitter {
 
                 stack.forEach(frame => {
                     frame = frame[1];
-                    name = '[' + parseInt(frame.level) + '] ' + frame.func + '@' + frame.addr;
+                    // name = '[' + parseInt(frame.level) + '] ' + frame.func + '@' + frame.addr;
+                    name = frame.func + '@' + frame.addr;
                     src = new Source(frame.file, frame.fullname);
                     stackFinal.push(new StackFrame(threadID + parseInt(frame.level), name, src, parseInt(frame.line)));
                 });
