@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from "child_process";
-import { MIParser, STOPPED, RUNNING } from "./parser/MIParser";
+import { MIParser, STOPPED, RUNNING, ERROR } from "./parser/MIParser";
 import { EventEmitter } from "events";
 import { Record } from "./parser/Record";
 import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
@@ -17,6 +17,8 @@ export const EVENT_FUNCTION_FINISHED = "function-finished";
 export const EVENT_EXITED_NORMALLY = "exited-normally";
 export const EVENT_SIGNAL = "signal-received";
 export const EVENT_PAUSED = "paused";
+export const EVENT_ERROR = "error";
+export const EVENT_ERROR_FATAL = "error-fatal";
 
 export const SCOPE_LOCAL = 1;
 
@@ -83,7 +85,7 @@ export class GDB extends EventEmitter {
         this.pHandle.on('error', (err) => {
             // Child process cannot be started (or killed)
             console.error(`Failed to start GDB process (${this.program})`);
-            this.emit('error');
+            this.emit(EVENT_ERROR_FATAL);
         });
 
         this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
@@ -149,7 +151,7 @@ export class GDB extends EventEmitter {
                 } catch(error) {
                     // Relay error state to debug session
                     console.error(error.stack);
-                    this.emit('error');
+                    this.emit(EVENT_ERROR_FATAL);
                 }
             }
         }
@@ -338,6 +340,11 @@ export class GDB extends EventEmitter {
             cmd += ` console "${expr}"`;
 
             this.sendCommand(cmd).then((record: ResultRecord) => {
+                // If an error has resulted, also send an error event to show it to the user
+                if (record.getClass() == ERROR) {
+                    this.emit(EVENT_ERROR, record.getResult("msg").replace(/\\/g, ''));
+                }
+
                 resolve(record.getResult("value"));
             });
 

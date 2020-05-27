@@ -18,6 +18,7 @@ const GDB_PROMPT = "(gdb)";
 
 export const STOPPED = "stopped";
 export const RUNNING = "running";
+export const ERROR = "error";
 
 const VALUE_CSTRING = '"';
 const VALUE_TUPLE = '{';

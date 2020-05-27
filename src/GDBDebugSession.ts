@@ -11,7 +11,7 @@ import {
     OutputEvent,
     Variable
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED, EVENT_ERROR, EVENT_ERROR_FATAL } from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
@@ -62,7 +62,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB = new GDB(this.outputChannel);
 
             // Bind error handler for unexpected GDB errors
-            this.GDB.on('error', (tid: number) => {
+            this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
                 console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
                 this.sendEvent(new TerminatedEvent());
             });
@@ -100,6 +100,10 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.GDB.on(EVENT_PAUSED, () => {
                 this.sendEvent(new StoppedEvent('pause', 1));
+            });
+
+            this.GDB.on(EVENT_ERROR, (msg: string) => {
+                vscode.window.showErrorMessage(msg);
             });
 
             response.body = response.body || {};
