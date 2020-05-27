@@ -330,12 +330,6 @@ export class GDB extends EventEmitter {
             let cmd = `-interpreter-exec`;
 
             if (frameID) {
-                if (expr == "up") {
-                    ++frameID;
-                } else if (expr == "down") {
-                    --frameID;
-                }
-
                 // "normalize" frameID with threadID
                 frameID = frameID - this.threadID + 1;
                 cmd += ` --frame ${frameID} --thread ${this.threadID}`;
