@@ -144,7 +144,11 @@ export class GDB extends EventEmitter {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
-                        this.emit(EVENT_OUTPUT, line + '\n');
+ 
+                        // Minimize the amount of logging
+                        if (record.constructor == StreamRecord) {
+                            this.emit(EVENT_OUTPUT, record.prettyPrint() + '\n');
+                        }
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
                     }
