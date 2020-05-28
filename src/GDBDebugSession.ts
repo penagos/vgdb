@@ -291,7 +291,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 					response.body =
 					{
 						result: result,
-						variablesReference: 0
+						variablesReference: 1
 					};
 					this.sendResponse(response);
                 });

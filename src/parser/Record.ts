@@ -1,4 +1,3 @@
-
 export abstract class Record {
     public response: string;
     protected token: number;
@@ -41,6 +40,6 @@ export abstract class Record {
 
     // Strip slashes, remove token identifier
     public prettyPrint() {
-        return this.response.replace(/\\/g, '');
+        return this.response.substring(2, this.response.length - 1);
     }
 };
