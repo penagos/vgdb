@@ -46,12 +46,14 @@ export class GDBDebugSession extends LoggingDebugSession {
     private outputTerminal: Terminal;
     private debug: boolean;
     private cwd: string;
+    private ttySyncFile: string;
 
     public constructor() {
         super();
         this.debug = true;
         this.outputChannel = vscode.window.createOutputChannel("vGDB");
         this.outputChannel.clear();
+        this.ttySyncFile = '/tmp/vGDBtty';
     }
 
     protected log(text: string) {
@@ -63,6 +65,14 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async initializeRequest(
         response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
+            // We need to spawn a new terminal & run a tty command to setup the
+            // proper pipe from the inferior's stdout/stderr to such terminal
+            // In order to get the results of the tty command we need to
+            // temporarily redirect the output to a known file
+            this.outputTerminal = vscode.window.createTerminal(`vGDB (inferior)`);
+            this.outputTerminal.sendText(`rm ${this.ttySyncFile} ; export PS1="" ; tty > ${this.ttySyncFile} ; clear`);
+            this.outputTerminal.show(true);
+
             this.GDB = new GDB(this.outputChannel);
 
             // Bind error handler for unexpected GDB errors
@@ -126,17 +136,8 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.cwd = args.cwd;
             this.log(`CWD is ${this.cwd}`);
 
-            // We need to spawn a new terminal & run a tty command to setup the
-            // proper pipe from the inferior's stdout/stderr to such terminal
-            // In order to get the results of the tty command we need to
-            // temporarily redirect the output to a known file
-            let ttySyncFile = '/tmp/vGDBtty';
-            this.outputTerminal = vscode.window.createTerminal(`vGDB (${args.name})`);
-            this.outputTerminal.sendText(`tty > ${ttySyncFile} ; clear`, true);
-            this.outputTerminal.show(true);
-
-            // TODO: there may be a lurking race condition here on slower PCs
-            let tty = fs.readFileSync(ttySyncFile).toString();
+            let tty = fs.readFileSync(this.ttySyncFile).toString();
+            tty = tty.substr(0, tty.length - 1);
             this.GDB.spawn(args.debugger, args.program, tty, args.args).then(() => {
                 // Success
                 this.sendResponse(response);

@@ -71,6 +71,9 @@ export class GDB extends EventEmitter {
         // Append all user arguments as needed
         this.program = program;
 
+        // All switches must be passed before program
+        this.args.push(`--tty=${tty}`);
+
         if (args) {
             this.args.push('--args');
             this.args.push(program);
@@ -82,8 +85,6 @@ export class GDB extends EventEmitter {
         if (debuggerPath !== undefined) {
             this.path = debuggerPath;
         }
-
-        this.args.push(`--tty=${tty}`);
 
         this.log(`Launching ${this.path} ${this.args.join(' ')}`);
         this.pHandle = spawn(this.path, this.args);
