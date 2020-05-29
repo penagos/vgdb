@@ -64,7 +64,10 @@ export class GDB extends EventEmitter {
         }
     }
 
-    public spawn(debuggerPath: string, program: string, args: ([] | undefined)): Promise<any> {
+    public spawn(debuggerPath: string,
+                 program: string,
+                 tty: string,
+                 args: ([] | undefined)): Promise<any> {
         // Append all user arguments as needed
         this.program = program;
 
@@ -80,6 +83,8 @@ export class GDB extends EventEmitter {
             this.path = debuggerPath;
         }
 
+        this.args.push(`--tty=${tty}`);
+
         this.log(`Launching ${this.path} ${this.args.join(' ')}`);
         this.pHandle = spawn(this.path, this.args);
         this.pHandle.on('error', (err) => {
@@ -91,6 +96,7 @@ export class GDB extends EventEmitter {
         this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
         this.pHandle.stderr.on('data', this.stderrHandler.bind(this));
 
+        // All the stderr/stdout produced by the inferior 
         // Since these requests will be issued in-order it suffices to spin
         // on the second request
         return this.sendCommand(`-gdb-set target-async on`);
