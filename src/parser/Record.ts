@@ -40,6 +40,7 @@ export abstract class Record {
 
     // Strip slashes, remove token identifier
     public prettyPrint() {
-        return this.response.substring(2, this.response.length - 1);
+        //return this.response.substring(2, this.response.length - 1);
+        return this.response;
     }
 };

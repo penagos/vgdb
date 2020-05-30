@@ -1,4 +1,3 @@
-import { spawn, ChildProcess } from "child_process";
 import { MIParser, STOPPED, RUNNING, ERROR } from "./parser/MIParser";
 import { EventEmitter } from "events";
 import { Record } from "./parser/Record";
@@ -7,6 +6,9 @@ import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 import { OutputChannel } from "vscode";
+import * as vscode from "vscode";
+import * as fs from 'fs';
+import * as ts from 'tail-stream';
 
 // GDB stop reasons
 export const EVENT_OUTPUT = "output";
@@ -23,7 +25,6 @@ export const EVENT_ERROR_FATAL = "error-fatal";
 export const SCOPE_LOCAL = 1;
 
 export class GDB extends EventEmitter {
-    private pHandle: ChildProcess;
     private path: string;
     private args: string[];
     private parser: MIParser;
@@ -32,8 +33,12 @@ export class GDB extends EventEmitter {
     private threadID: number;
     private stopped: boolean;
     private outputChannel: OutputChannel;
+    private outputTerminal: vscode.Terminal;
     private debug: boolean;
-    private program: string;
+    private inputFile: string;
+    private outputFile: string;
+    private inputHandle;
+    private outputHandle;
 
     // Output buffering for stdout pipe
     private ob: string;
@@ -46,16 +51,21 @@ export class GDB extends EventEmitter {
 
         this.outputChannel = outputChannel;
         this.path = 'gdb';
-        this.args = ['--interpreter=mi2', '-q'];
+        this.args = ['--interpreter=mi2', '-q', '--tty=`tty`'];
 
         this.debug = true;
         this.token = 0;
         this.threadID = -1;
-        this.stopped = false;
+        this.stopped = true;
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
-        this.program = "";
+
+        this.inputFile = this.generateTmpFile('In');
+        this.outputFile = this.generateTmpFile('Out');
+        let cmd = `mkfifo ${this.inputFile} ; exec 3>${this.inputFile}`;
+        const { exec } = require('child_process');
+        exec(cmd);
     }
 
     private log(text: string) {
@@ -64,16 +74,64 @@ export class GDB extends EventEmitter {
         }
     }
 
+    private genRandomID(length: number) : string {
+        var result           = '';
+        var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        var charactersLength = characters.length;
+        for ( var i = 0; i < length; i++ ) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        }
+        return result;
+    }
+
+    private generateTmpFile(desc: string) : string {
+        return `/tmp/vGDB_${desc}${this.genRandomID(8)}`;
+    }
+
+    private createLaunchCommand(debuggerPath: string,
+                                program: string,
+                                args) : string {
+        // We need to setup the FIFO pipes for the debugger here as well.
+        // We cannot use the default nodejs fs.createReadStream API as this
+        // will close the stream on EOF. Instead we need to monitor it
+        // even though there may be an EOF char. We will explicitly close
+        // the stream when the debug adapter is destroyed
+
+
+        // Touch files for proper stream pipe creation
+        //fs.writeFile(this.inputFile, '', () => {});
+        fs.writeFile(this.outputFile, '', () => {});
+
+        let cleanup = `& clear ; trap 'kill -9 $!' SIGINT ; wait $!`;
+        return `${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} ${cleanup}`;
+    }
+
     public spawn(debuggerPath: string,
                  program: string,
                  tty: string,
                  args: ([] | undefined)): Promise<any> {
-        // Append all user arguments as needed
-        this.program = program;
+        // We need to spawn a new terminal & run a tty command to setup the
+        // proper pipe from the inferior's stdout/stderr to such terminal
+        // In order to get the results of the tty command we need to
+        // temporarily redirect the output to a known file
+        this.outputTerminal = vscode.window.createTerminal(`vGDB`);
 
-        // All switches must be passed before program
-        this.args.push(`--tty=${tty}`);
-
+        // Spawn the GDB process in the integrated terminal. In order to
+        // correctly separate inferior output from GDB output and pipe
+        // them to the correct handlers we use some hacks:
+        // (1) We set the inferior-tty to be that of the integrated terminal
+        //     This lets us pipe all stdout/stderr from the inferior there
+        //     and separate it from any output created by GDB. It also lets
+        //     us use the integrated terminal for the inferior's input
+        // (2) We redirect all GDB stdout to a tmp file which the debug
+        //     adapter will monitor for command results and other async
+        //     notify events
+        // (3) We redirect all stdin to GDB through another FIFO pipe which
+        //     we will keep open throughout the entirety of the debug
+        //     session (to prevent premature debugger exit).
+        if (debuggerPath !== undefined) {
+            this.path = debuggerPath;
+        }
         if (args) {
             this.args.push('--args');
             this.args.push(program);
@@ -82,24 +140,16 @@ export class GDB extends EventEmitter {
             this.args.push(program);
         }
 
-        if (debuggerPath !== undefined) {
-            this.path = debuggerPath;
-        }
+        let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
+        this.outputTerminal.sendText(launchCmd);
+        this.outputTerminal.show(true);
+        this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
+        this.outputHandle = ts.createReadStream(this.outputFile);
 
-        this.log(`Launching ${this.path} ${this.args.join(' ')}`);
-        this.pHandle = spawn(this.path, this.args);
-        this.pHandle.on('error', (err) => {
-            // Child process cannot be started (or killed)
-            console.error(`Failed to start GDB process (${this.program})`);
-            this.emit(EVENT_ERROR_FATAL);
+        this.outputHandle.on('data', (data) => {
+            this.stdoutHandler(data);
         });
 
-        this.pHandle.stdout.on('data', this.stdoutHandler.bind(this));
-        this.pHandle.stderr.on('data', this.stderrHandler.bind(this));
-
-        // All the stderr/stdout produced by the inferior 
-        // Since these requests will be issued in-order it suffices to spin
-        // on the second request
         this.sendCommand(`show inferior-tty`);
         return this.sendCommand(`-gdb-set target-async on`);
     }
@@ -112,7 +162,7 @@ export class GDB extends EventEmitter {
 
             this.log(cmd);
             console.warn(cmd);
-            this.pHandle.stdin.write(cmd + '\n');
+            this.inputHandle.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
                 this.log(record.prettyPrint());
@@ -256,12 +306,6 @@ export class GDB extends EventEmitter {
                 // Forward raw GDB output to debug console
             break;
         }
-    }
-
-    // Called on any stderr produced by GDB Process
-    private stderrHandler(data) {
-        let str = data.toString('utf8');
-        console.error(str);
     }
 
     public clearBreakpoints(): Promise<any>  {

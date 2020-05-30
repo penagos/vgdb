@@ -14,8 +14,7 @@ import {
 import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED, EVENT_ERROR, EVENT_ERROR_FATAL } from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
-import { OutputChannel, Terminal } from 'vscode';
-import * as fs from 'fs';
+import { OutputChannel } from 'vscode';
 
 /**
  * This interface describes the mock-debug specific launch attributes
@@ -43,18 +42,21 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
-    private outputTerminal: Terminal;
     private debug: boolean;
     private cwd: string;
-    private ttySyncFile: string;
     private tty: string;
 
     public constructor() {
         super();
         this.debug = true;
+
+        // The outputChannel is to separate debug logging from the adapter
+        // from the output of GDB. We need to clear it on each launch
+        // request to remove stale output from prior runs
         this.outputChannel = vscode.window.createOutputChannel("vGDB");
         this.outputChannel.clear();
-        this.ttySyncFile = '/tmp/vGDBtty';
+
+        this.GDB = new GDB(this.outputChannel);
     }
 
     protected log(text: string) {
@@ -66,75 +68,59 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async initializeRequest(
         response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
-            // We need to spawn a new terminal & run a tty command to setup the
-            // proper pipe from the inferior's stdout/stderr to such terminal
-            // In order to get the results of the tty command we need to
-            // temporarily redirect the output to a known file
-            this.outputTerminal = vscode.window.createTerminal(`vGDB (inferior)`);
-            fs.unlinkSync(this.ttySyncFile);
-            this.outputTerminal.sendText(`tty ; tty > ${this.ttySyncFile}`);
-            this.outputTerminal.show(true);
-
-            // Spin until terminal is ready
-            fs.watchFile(this.ttySyncFile, {interval: 100}, () => {
-                this.tty = fs.readFileSync(this.ttySyncFile).toString('utf8');
-                this.tty = this.tty.substr(0, this.tty.length - 1);
-                this.GDB = new GDB(this.outputChannel);
-    
-                // Bind error handler for unexpected GDB errors
-                this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
-                    console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
-                    this.sendEvent(new TerminatedEvent());
-                });
-    
-                // Pipe to debug console
-                this.GDB.on(EVENT_OUTPUT, (text: string) => {
-                    this.sendEvent(new OutputEvent(text, 'console'));
-                });
-    
-                // Events triggered by debuggeer
-                this.GDB.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
-                    this.sendEvent(new ContinuedEvent(threadID, allThreads));
-                });
-    
-                this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
-                    this.sendEvent(new StoppedEvent("breakpoint", threadID));
-                });
-    
-                this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
-                    this.sendEvent(new StoppedEvent("step", threadID));
-                });
-    
-                this.GDB.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
-                    this.sendEvent(new StoppedEvent("step-out", threadID));
-                });
-    
-                this.GDB.on(EVENT_EXITED_NORMALLY, () => {
-                    this.sendEvent(new TerminatedEvent());
-                });
-    
-                this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
-                    // TODO: handle other signals
-                    this.sendEvent(new StoppedEvent('pause', threadID));
-                });
-    
-                this.GDB.on(EVENT_PAUSED, () => {
-                    this.sendEvent(new StoppedEvent('pause', 1));
-                });
-    
-                this.GDB.on(EVENT_ERROR, (msg: string) => {
-                    vscode.window.showErrorMessage(msg);
-                });
-    
-                response.body = response.body || {};
-                response.body.supportsEvaluateForHovers = true;
-                response.body.supportsSetVariable = true;
-                response.body.supportsConfigurationDoneRequest = true;
-                response.body.supportsEvaluateForHovers = true;
-    
-                this.sendResponse(response);
-                this.sendEvent(new InitializedEvent());
+            // Bind error handler for unexpected GDB errors
+            this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
+                console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
+                this.sendEvent(new TerminatedEvent());
             });
+
+            // Pipe to debug console
+            this.GDB.on(EVENT_OUTPUT, (text: string) => {
+                this.sendEvent(new OutputEvent(text, 'console'));
+            });
+
+            // Events triggered by debuggeer
+            this.GDB.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
+                this.sendEvent(new ContinuedEvent(threadID, allThreads));
+            });
+
+            this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
+                this.sendEvent(new StoppedEvent("breakpoint", threadID));
+            });
+
+            this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
+                this.sendEvent(new StoppedEvent("step", threadID));
+            });
+
+            this.GDB.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
+                this.sendEvent(new StoppedEvent("step-out", threadID));
+            });
+
+            this.GDB.on(EVENT_EXITED_NORMALLY, () => {
+                this.sendEvent(new TerminatedEvent());
+            });
+
+            this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
+                // TODO: handle other signals
+                this.sendEvent(new StoppedEvent('pause', threadID));
+            });
+
+            this.GDB.on(EVENT_PAUSED, () => {
+                this.sendEvent(new StoppedEvent('pause', 1));
+            });
+
+            this.GDB.on(EVENT_ERROR, (msg: string) => {
+                vscode.window.showErrorMessage(msg);
+            });
+
+            response.body = response.body || {};
+            response.body.supportsEvaluateForHovers = true;
+            response.body.supportsSetVariable = true;
+            response.body.supportsConfigurationDoneRequest = true;
+            response.body.supportsEvaluateForHovers = true;
+
+            this.sendResponse(response);
+            this.sendEvent(new InitializedEvent());
         }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
@@ -181,7 +167,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             // we can start the inferior. We need to clear the terminal to hide
             // a longstanding GDB warning printed to terminal when changing the
             // inferior tty
-            this.outputTerminal.sendText(`clear`);
             this.GDB.startInferior().then(() => {
                 super.configurationDoneRequest(response, args);
             });
