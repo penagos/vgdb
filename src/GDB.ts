@@ -368,8 +368,17 @@ export class GDB extends EventEmitter {
     }
 
     public startInferior(): Promise<any> {
-        // Launch the debuggee target
-        return this.sendCommand(`-exec-run`);
+        // Launch the debuggee target -- we need to do some magic here to hide
+        // the longstanding GDB bug when redirecting inferior output to a
+        // different tty. So we set a breakpoint at the first instruction,
+        // clear the active terminal and continue on our merry way.
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`starti`).then(() => {
+                vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
+                    return this.sendCommand(`continue`);
+                });
+            });
+        });
     }
 
     public evaluateExpr(expr: string, frameID?: number): Promise<any> {
