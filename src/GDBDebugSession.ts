@@ -118,6 +118,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body.supportsSetVariable = true;
             response.body.supportsConfigurationDoneRequest = true;
             response.body.supportsEvaluateForHovers = true;
+            response.body.supportsTerminateRequest = true;
 
             this.sendResponse(response);
             this.sendEvent(new InitializedEvent());
@@ -315,5 +316,10 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB.pause().then(() => {
                 this.sendResponse(response);
             });
-	}
+    }
+
+    protected terminateRequest(response: DebugProtocol.TerminateResponse,
+        args: DebugProtocol.TerminateArguments): void {
+            this.sendResponse(response);
+    }
 }

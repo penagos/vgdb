@@ -61,9 +61,17 @@ export class GDB extends EventEmitter {
         this.handlers = [];
         this.parser = new MIParser();
 
+        // This is a bit of a hack -- since there is no elegant way of making a
+        // FIFO pipe in nodeJS we need to resort to a shell to do so. We need to
+        // do this in the constructor to give sufficient time for the FIFO pipe
+        // creation prior to writing to it
+        this.createIOPipes();
+    }
+
+    private createIOPipes() {
         this.inputFile = this.generateTmpFile('In');
         this.outputFile = this.generateTmpFile('Out');
-        let cmd = `mkfifo ${this.inputFile} ; exec 3>${this.inputFile}`;
+        let cmd = `mkfifo ${this.inputFile} ;`;
         const { exec } = require('child_process');
         exec(cmd);
     }
@@ -91,18 +99,18 @@ export class GDB extends EventEmitter {
     private createLaunchCommand(debuggerPath: string,
                                 program: string,
                                 args) : string {
-        // We need to setup the FIFO pipes for the debugger here as well.
-        // We cannot use the default nodejs fs.createReadStream API as this
-        // will close the stream on EOF. Instead we need to monitor it
-        // even though there may be an EOF char. We will explicitly close
-        // the stream when the debug adapter is destroyed
-
-
-        // Touch files for proper stream pipe creation
-        //fs.writeFile(this.inputFile, '', () => {});
+        // This idea is borrowed from the Microsoft cpptools VSCode extension.
+        // It really is the only conceivable way to support running in the
+        // integrated terminal. We spin on the GDB process to prevent the shell
+        // from accepting normal commands. We set a trap handler to correctly
+        // communicate inferior completion back to the debug adapter so we can
+        // issue the corresponding TerminatedEvent and take down GDB. We issue
+        // the +m command to hide the background "done" message when GDB
+        // finishes debugging the inferior
+        // All of these hacks probably won't work on Windows
         fs.writeFile(this.outputFile, '', () => {});
 
-        let cleanup = `& clear ; trap 'kill -9 $!' SIGINT ; wait $!`;
+        let cleanup = `& clear ; pid=$!; set +m ; trap 'echo "quit" > ${this.inputFile}' SIGINT ; wait $pid`;
         return `${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} ${cleanup}`;
     }
 
@@ -245,6 +253,8 @@ export class GDB extends EventEmitter {
                                     break;
 
                                     case EVENT_EXITED_NORMALLY:
+                                        // Kill debugger
+                                        this.sendCommand(`quit`);
                                         this.emit(reason)
                                     break;
 
@@ -441,7 +451,6 @@ export class GDB extends EventEmitter {
 
                 stack.forEach(frame => {
                     frame = frame[1];
-                    // name = '[' + parseInt(frame.level) + '] ' + frame.func + '@' + frame.addr;
                     name = frame.func + '@' + frame.addr;
                     src = new Source(frame.file, frame.fullname);
                     stackFinal.push(new StackFrame(threadID + parseInt(frame.level), name, src, parseInt(frame.line)));
