@@ -100,6 +100,7 @@ export class GDB extends EventEmitter {
         // All the stderr/stdout produced by the inferior 
         // Since these requests will be issued in-order it suffices to spin
         // on the second request
+        this.sendCommand(`show inferior-tty`);
         return this.sendCommand(`-gdb-set target-async on`);
     }
 

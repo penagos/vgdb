@@ -47,6 +47,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     private debug: boolean;
     private cwd: string;
     private ttySyncFile: string;
+    private tty: string;
 
     public constructor() {
         super();
@@ -70,64 +71,70 @@ export class GDBDebugSession extends LoggingDebugSession {
             // In order to get the results of the tty command we need to
             // temporarily redirect the output to a known file
             this.outputTerminal = vscode.window.createTerminal(`vGDB (inferior)`);
-            this.outputTerminal.sendText(`rm ${this.ttySyncFile} ; export PS1="" ; tty > ${this.ttySyncFile} ; clear`);
+            fs.unlinkSync(this.ttySyncFile);
+            this.outputTerminal.sendText(`tty ; tty > ${this.ttySyncFile}`);
             this.outputTerminal.show(true);
 
-            this.GDB = new GDB(this.outputChannel);
-
-            // Bind error handler for unexpected GDB errors
-            this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
-                console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
-                this.sendEvent(new TerminatedEvent());
+            // Spin until terminal is ready
+            fs.watchFile(this.ttySyncFile, {interval: 100}, () => {
+                this.tty = fs.readFileSync(this.ttySyncFile).toString('utf8');
+                this.tty = this.tty.substr(0, this.tty.length - 1);
+                this.GDB = new GDB(this.outputChannel);
+    
+                // Bind error handler for unexpected GDB errors
+                this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
+                    console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
+                    this.sendEvent(new TerminatedEvent());
+                });
+    
+                // Pipe to debug console
+                this.GDB.on(EVENT_OUTPUT, (text: string) => {
+                    this.sendEvent(new OutputEvent(text, 'console'));
+                });
+    
+                // Events triggered by debuggeer
+                this.GDB.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
+                    this.sendEvent(new ContinuedEvent(threadID, allThreads));
+                });
+    
+                this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
+                    this.sendEvent(new StoppedEvent("breakpoint", threadID));
+                });
+    
+                this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
+                    this.sendEvent(new StoppedEvent("step", threadID));
+                });
+    
+                this.GDB.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
+                    this.sendEvent(new StoppedEvent("step-out", threadID));
+                });
+    
+                this.GDB.on(EVENT_EXITED_NORMALLY, () => {
+                    this.sendEvent(new TerminatedEvent());
+                });
+    
+                this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
+                    // TODO: handle other signals
+                    this.sendEvent(new StoppedEvent('pause', threadID));
+                });
+    
+                this.GDB.on(EVENT_PAUSED, () => {
+                    this.sendEvent(new StoppedEvent('pause', 1));
+                });
+    
+                this.GDB.on(EVENT_ERROR, (msg: string) => {
+                    vscode.window.showErrorMessage(msg);
+                });
+    
+                response.body = response.body || {};
+                response.body.supportsEvaluateForHovers = true;
+                response.body.supportsSetVariable = true;
+                response.body.supportsConfigurationDoneRequest = true;
+                response.body.supportsEvaluateForHovers = true;
+    
+                this.sendResponse(response);
+                this.sendEvent(new InitializedEvent());
             });
-
-            // Pipe to debug console
-            this.GDB.on(EVENT_OUTPUT, (text: string) => {
-                this.sendEvent(new OutputEvent(text, 'console'));
-            });
-
-            // Events triggered by debuggeer
-            this.GDB.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
-                this.sendEvent(new ContinuedEvent(threadID, allThreads));
-            });
-
-            this.GDB.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
-                this.sendEvent(new StoppedEvent("breakpoint", threadID));
-            });
-
-            this.GDB.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
-                this.sendEvent(new StoppedEvent("step", threadID));
-            });
-
-            this.GDB.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
-                this.sendEvent(new StoppedEvent("step-out", threadID));
-            });
-
-            this.GDB.on(EVENT_EXITED_NORMALLY, () => {
-                this.sendEvent(new TerminatedEvent());
-            });
-
-            this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
-                // TODO: handle other signals
-                this.sendEvent(new StoppedEvent('pause', threadID));
-            });
-
-            this.GDB.on(EVENT_PAUSED, () => {
-                this.sendEvent(new StoppedEvent('pause', 1));
-            });
-
-            this.GDB.on(EVENT_ERROR, (msg: string) => {
-                vscode.window.showErrorMessage(msg);
-            });
-
-            response.body = response.body || {};
-            response.body.supportsEvaluateForHovers = true;
-            response.body.supportsSetVariable = true;
-            response.body.supportsConfigurationDoneRequest = true;
-            response.body.supportsEvaluateForHovers = true;
-
-            this.sendResponse(response);
-            this.sendEvent(new InitializedEvent());
         }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
@@ -136,9 +143,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.cwd = args.cwd;
             this.log(`CWD is ${this.cwd}`);
 
-            let tty = fs.readFileSync(this.ttySyncFile).toString();
-            tty = tty.substr(0, tty.length - 1);
-            this.GDB.spawn(args.debugger, args.program, tty, args.args).then(() => {
+            this.GDB.spawn(args.debugger, args.program, this.tty, args.args).then(() => {
                 // Success
                 this.sendResponse(response);
             }, (error) => {
@@ -173,7 +178,10 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
         args: DebugProtocol.ConfigurationDoneArguments): void {
             // Once all breakpoints have been sent and synced with the debugger
-            // we can start the inferior
+            // we can start the inferior. We need to clear the terminal to hide
+            // a longstanding GDB warning printed to terminal when changing the
+            // inferior tty
+            this.outputTerminal.sendText(`clear`);
             this.GDB.startInferior().then(() => {
                 super.configurationDoneRequest(response, args);
             });
