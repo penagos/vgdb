@@ -7,6 +7,7 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 - Debugging on Linux (Windows and Mac support untested)
 - Supports integrated and external terminals
 - Debug Console prompt accepts native GDB commands
+- Honors deferred symbol loading settings in `.gdbinit`
 
 ## Quick Start
 

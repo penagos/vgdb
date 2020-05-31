@@ -1,9 +1,9 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"publisher": "penagos",
-	"description": "C/C++ Debugging for VSCode",
+	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
 		"name": "Luis Penagos",
 		"email": "luis@penagos.co"
