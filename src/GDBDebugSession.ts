@@ -175,12 +175,16 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
         this.log(`Threads request`);
+        if (this.GDB.isStopped()) {
             this.GDB.getThreads().then((threads: Thread[]) => {
                 response.body = {
                     threads: threads
                 };
                 this.sendResponse(response);
             });
+        } else {
+            this.sendResponse(response);
+        }
     }
 
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,

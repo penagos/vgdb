@@ -77,7 +77,7 @@ export class GDB extends EventEmitter {
 
         this.outputChannel = outputChannel;
         this.token = 0;
-        this.threadID = -1;
+        this.threadID = 0;
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
@@ -90,8 +90,8 @@ export class GDB extends EventEmitter {
     }
 
     private createIOPipes() {
-        this.inputFile = this.generateTmpFile('In');
-        this.outputFile = this.generateTmpFile('Out');
+        this.inputFile = this.generateTmpFile('In') + this.token;
+        this.outputFile = this.generateTmpFile('Out') + this.token;
         let cmd = `mkfifo ${this.inputFile} ;`;
         const { exec } = require('child_process');
         exec(cmd);
@@ -139,48 +139,52 @@ export class GDB extends EventEmitter {
                  program: string,
                  tty: string,
                  args: ([] | undefined)): Promise<any> {
-        // We need to spawn a new terminal & run a tty command to setup the
-        // proper pipe from the inferior's stdout/stderr to such terminal
-        // In order to get the results of the tty command we need to
-        // temporarily redirect the output to a known file
-        this.outputTerminal = vscode.window.createTerminal(`vGDB`);
+        return new Promise((resolve, reject) => {
+            // We need to spawn a new terminal & run a tty command to setup the
+            // proper pipe from the inferior's stdout/stderr to such terminal
+            // In order to get the results of the tty command we need to
+            // temporarily redirect the output to a known file
+            this.outputTerminal = vscode.window.createTerminal(`vGDB`);
 
-        // Spawn the GDB process in the integrated terminal. In order to
-        // correctly separate inferior output from GDB output and pipe
-        // them to the correct handlers we use some hacks:
-        // (1) We set the inferior-tty to be that of the integrated terminal
-        //     This lets us pipe all stdout/stderr from the inferior there
-        //     and separate it from any output created by GDB. It also lets
-        //     us use the integrated terminal for the inferior's input
-        // (2) We redirect all GDB stdout to a tmp file which the debug
-        //     adapter will monitor for command results and other async
-        //     notify events
-        // (3) We redirect all stdin to GDB through another FIFO pipe which
-        //     we will keep open throughout the entirety of the debug
-        //     session (to prevent premature debugger exit).
-        if (debuggerPath !== undefined) {
-            this.path = debuggerPath;
-        }
-        if (args) {
-            this.args.push('--args');
-            this.args.push(program);
-            this.args = this.args.concat(args);
-        } else {
-            this.args.push(program);
-        }
+            // Spawn the GDB process in the integrated terminal. In order to
+            // correctly separate inferior output from GDB output and pipe
+            // them to the correct handlers we use some hacks:
+            // (1) We set the inferior-tty to be that of the integrated terminal
+            //     This lets us pipe all stdout/stderr from the inferior there
+            //     and separate it from any output created by GDB. It also lets
+            //     us use the integrated terminal for the inferior's input
+            // (2) We redirect all GDB stdout to a tmp file which the debug
+            //     adapter will monitor for command results and other async
+            //     notify events
+            // (3) We redirect all stdin to GDB through another FIFO pipe which
+            //     we will keep open throughout the entirety of the debug
+            //     session (to prevent premature debugger exit).
+            if (debuggerPath !== undefined) {
+                this.path = debuggerPath;
+            }
+            if (args) {
+                this.args.push('--args');
+                this.args.push(program);
+                this.args = this.args.concat(args);
+            } else {
+                this.args.push(program);
+            }
 
-        let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
-        this.outputTerminal.sendText(launchCmd);
-        this.outputTerminal.show(true);
-        this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
-        this.outputHandle = ts.createReadStream(this.outputFile);
+            let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
+            this.log(launchCmd);
+            this.outputTerminal.sendText(launchCmd);
+            this.outputTerminal.show(true);
+            this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
+            this.outputHandle = ts.createReadStream(this.outputFile);
 
-        this.outputHandle.on('data', (data) => {
-            this.stdoutHandler(data);
+            this.outputHandle.on('data', (data) => {
+                this.stdoutHandler(data);
+            });
+
+            this.inputHandle.on('open', () => {
+                resolve();
+            });
         });
-
-        this.sendCommand(`show inferior-tty`);
-        return this.sendCommand(`-gdb-set target-async on`);
     }
 
     // Send an MI command to GDB
@@ -393,9 +397,13 @@ export class GDB extends EventEmitter {
         // different tty. So we set a breakpoint at the first instruction,
         // clear the active terminal and continue on our merry way.
         return new Promise((resolve, reject) => {
-            this.sendCommand(`starti`).then(() => {
-                vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
-                    return this.sendCommand(`continue`);
+            this.sendCommand(`-gdb-set target-async on`).then(() => {
+                this.sendCommand(`-exec-run`).then(() => {
+                    this.sendCommand(`-exec-interrupt`).then(() => {
+                        vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
+                            return this.sendCommand(`-exec-continue`);
+                        });
+                    });
                 });
             });
         });
@@ -470,7 +478,7 @@ export class GDB extends EventEmitter {
     }
 
     public isStopped(): boolean {
-        return this.threadID == -1;
+        return this.threadID != -1;
     }
 
     public getStack(threadID: number): Promise<any> {
