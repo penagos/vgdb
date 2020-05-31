@@ -38,7 +38,8 @@
 		"publish": "vsce publish"
 	},
 	"dependencies": {
-		"vscode-debugadapter": "1.35.0"
+		"vscode-debugadapter": "1.35.0",
+		"tail-stream": "0.3.4"
 	},
 	"devDependencies": {
 		"@types/node": "10.12.12",
@@ -100,10 +101,10 @@
 								"description": "Working directory of the target",
 								"default": "${workspaceFolder}"
 							},
-                            "externalConsole": {
-                                "type": "boolean",
-                                "description": "If true, debug target will spawn a new terminal window",
-                                "default": false
+							"externalConsole": {
+								"type": "boolean",
+								"description": "If true, debug target will spawn a new terminal window",
+								"default": false
 							},
 							"debugger": {
 								"type": "string",
