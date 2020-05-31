@@ -25,18 +25,44 @@ export const EVENT_ERROR_FATAL = "error-fatal";
 export const SCOPE_LOCAL = 1;
 
 export class GDB extends EventEmitter {
-    private path: string;
-    private args: string[];
+    // Default path to MI debugger. If none is specified in the launch config
+    // we will fallback to this path
+    private path: string = "gdb";
+
+    // Arguments to pass to GDB. These will be combined with any that need to
+    // be threaded to the inferior process
+    private args: string[] = ['--interpreter=mi2', '-q', '--tty=`tty`'];
+
+    // This instance will handle all MI output parsing
     private parser: MIParser;
+
+    // Used to sync MI inputs and outputs. Value increases by 1 with each
+    // command issued
     private token: number;
+
+    // Callbacks to execute when a command identified by "token" is resolved
+    // by the debugger
     private handlers: { [token: number]: (record: Record) => any };
+
+    // The current thread on which the debugger is stopped on. If the debugger
+    // is not currently stopped on any thread, this value is -1. Also serves
+    // as a stopped sentinel
     private threadID: number;
-    private stopped: boolean;
+
     private outputChannel: OutputChannel;
     private outputTerminal: vscode.Terminal;
-    private debug: boolean;
+
+    // Control whether or not to dump extension diagnostic information to a
+    // dedicated output channel (useful for development)
+    private debug: boolean = true;
+
+    // Filepaths to input and output pipes used for IPC with GDB process. These
+    // will be randomly generated on each debug session
     private inputFile: string;
     private outputFile: string;
+
+    // IO handles to actual pipes. The input handle is an actual FIFO handle
+    // while the output handle is a normal fd
     private inputHandle;
     private outputHandle;
 
@@ -50,13 +76,8 @@ export class GDB extends EventEmitter {
         super();
 
         this.outputChannel = outputChannel;
-        this.path = 'gdb';
-        this.args = ['--interpreter=mi2', '-q', '--tty=`tty`'];
-
-        this.debug = true;
         this.token = 0;
         this.threadID = -1;
-        this.stopped = true;
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
@@ -235,7 +256,6 @@ export class GDB extends EventEmitter {
                     case AsyncRecordType.EXEC:
                         switch (record.getClass()) {
                             case STOPPED:
-                                this.stopped = true;
                                 this.threadID = parseInt(record.getResult("thread-id"));
                                 let reason = record.getResult("reason");
 
@@ -269,7 +289,7 @@ export class GDB extends EventEmitter {
 
                             case RUNNING:
                                 let tid:number, all: boolean;
-                                this.stopped = false;
+                                this.threadID = -1;
                                 all = false;
 
                                 // If threadID is not a number, this means all threads have continued
@@ -424,7 +444,9 @@ export class GDB extends EventEmitter {
             });
 
             // If this was an up or down command, send a continued and paused
-            // event to trick VSCode into re-requesting the stacktrace
+            // event to trick VSCode into re-requesting the stacktrace.
+            // TODO: this will not cause the right stackframe to be selected as
+            // the debug adapter protocol does not support this
             if (expr == "up" || expr == "down") {
                 this.emit(EVENT_RUNNING, this.threadID, true);
                 this.emit(EVENT_PAUSED);
@@ -448,7 +470,7 @@ export class GDB extends EventEmitter {
     }
 
     public isStopped(): boolean {
-        return this.stopped;
+        return this.threadID == -1;
     }
 
     public getStack(threadID: number): Promise<any> {
