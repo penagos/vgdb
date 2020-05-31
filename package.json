@@ -121,8 +121,8 @@
 					{
 						"type": "vgdb",
 						"request": "launch",
-						"name": "${2:Launch}",
-						"program": "${workspaceFolder}/${1:<ProgramPath>}",
+						"name": "C/C++ Debug",
+						"program": "${workspaceFolder}/a.out",
 						"args": [],
 						"cwd": "${workspaceFolder}"
 					}
@@ -134,8 +134,8 @@
 						"body": {
 							"type": "vgdb",
 							"request": "launch",
-							"name": "${2:Launch}",
-							"program": "${workspaceFolder}/${1:<ProgramPath>}",
+							"name": "C/C++ Debug",
+							"program": "${workspaceFolder}/a.out",
 							"args": [],
 							"cwd": "${workspaceFolder}"
 						}
