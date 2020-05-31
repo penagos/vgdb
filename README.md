@@ -11,3 +11,10 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 - Debugging over SSH<sup>*</sup>
 
 <sup>\*</sup> Experimental feature
+
+## Quick Start
+
+vGDB ships with sample configurations you can use to quickly get started.
+
+## Configuration
+
