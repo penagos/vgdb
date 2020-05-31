@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
@@ -81,7 +81,7 @@
 						"properties": {
 							"program": {
 								"type": "string",
-								"description": "Absolute path to a text file.",
+								"description": "Absolute path of program to debug",
 								"default": "${workspaceFolder}/${command:AskForProgramName}"
 							},
 							"stopOnEntry": {
@@ -115,6 +115,21 @@
 								"default": "gdb"
 							}
 						}
+					},
+					"attach": {
+						"required": [
+							"program"
+						],
+						"program": {
+							"type": "number",
+							"description": "PID of program to debug",
+							"default": "\\${command:AskForProgramPID}"
+						},
+						"debugger": {
+							"type": "string",
+							"description": "Path to GDB executable",
+							"default": "gdb"
+						}
 					}
 				},
 				"initialConfigurations": [
@@ -129,20 +144,31 @@
 				],
 				"configurationSnippets": [
 					{
-						"label": "C++ Debug: Launch",
+						"label": "vGDB C/C++ Debug: Launch",
 						"description": "Start GDB for debugging a C/C++ program",
 						"body": {
 							"type": "vgdb",
 							"request": "launch",
-							"name": "C/C++ Debug",
+							"name": "C/C++ Debug Launch",
 							"program": "${workspaceFolder}/a.out",
 							"args": [],
 							"cwd": "${workspaceFolder}"
 						}
+					},
+					{
+						"label": "vGDB C/C++ Debug: Attach",
+						"description": "Attach GDB to running C/C++ program",
+						"body": {
+							"type": "vgdb",
+							"request": "attach",
+							"name": "C/C++ Debug Attach",
+							"program": "^\"\\${command:AskForProgramPID}\""
+						}
 					}
 				],
 				"variables": {
-					"AskForProgramName": "extension.mock-debug.getProgramName"
+					"AskForProgramName": "extension.vgdb.getProgramName",
+					"AskForProgramPID": "extension.vgdb.getProgramPID"
 				}
 			}
 		]

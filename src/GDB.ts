@@ -72,6 +72,9 @@ export class GDB extends EventEmitter {
     // Track if GDB is initialized
     private initialized: boolean;
 
+    // Inferior PID for attach requests
+    private PID: number;
+
     public constructor(outputChannel: OutputChannel) {
         super();
 
@@ -118,7 +121,7 @@ export class GDB extends EventEmitter {
     }
 
     private createLaunchCommand(debuggerPath: string,
-                                program: string,
+                                program: any,
                                 args) : string {
         // This idea is borrowed from the Microsoft cpptools VSCode extension.
         // It really is the only conceivable way to support running in the
@@ -136,8 +139,7 @@ export class GDB extends EventEmitter {
     }
 
     public spawn(debuggerPath: string,
-                 program: string,
-                 tty: string,
+                 program: any,
                  args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
             // We need to spawn a new terminal & run a tty command to setup the
@@ -162,12 +164,19 @@ export class GDB extends EventEmitter {
             if (debuggerPath !== undefined) {
                 this.path = debuggerPath;
             }
-            if (args) {
-                this.args.push('--args');
-                this.args.push(program);
-                this.args = this.args.concat(args);
+
+            // If this is an attach request, the program arg will be a numeric
+            // We need to thread this differently to GDB
+            if (isNaN(program)) {
+                if (args) {
+                    this.args.push('--args');
+                    this.args.push(program);
+                    this.args = this.args.concat(args);
+                } else {
+                    this.args.push(program);
+                }
             } else {
-                this.args.push(program);
+                this.PID = program;
             }
 
             let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
@@ -263,31 +272,34 @@ export class GDB extends EventEmitter {
                                 this.threadID = parseInt(record.getResult("thread-id"));
                                 let reason = record.getResult("reason");
 
-                                switch (reason) {
-                                    case EVENT_BREAKPOINT_HIT:
-                                        this.emit(reason, this.threadID);
-                                    break;
+                                // Play nice with attach requests
+                                if (reason !== undefined) {
+                                    switch (reason) {
+                                        case EVENT_BREAKPOINT_HIT:
+                                            this.emit(reason, this.threadID);
+                                        break;
 
-                                    case EVENT_END_STEPPING_RANGE:
-                                        this.emit(reason, this.threadID);
-                                    break;
+                                        case EVENT_END_STEPPING_RANGE:
+                                            this.emit(reason, this.threadID);
+                                        break;
 
-                                    case EVENT_FUNCTION_FINISHED:
-                                        this.emit(EVENT_FUNCTION_FINISHED, this.threadID);
-                                    break;
+                                        case EVENT_FUNCTION_FINISHED:
+                                            this.emit(EVENT_FUNCTION_FINISHED, this.threadID);
+                                        break;
 
-                                    case EVENT_EXITED_NORMALLY:
-                                        // Kill debugger
-                                        this.sendCommand(`quit`);
-                                        this.emit(reason)
-                                    break;
+                                        case EVENT_EXITED_NORMALLY:
+                                            // Kill debugger
+                                            this.sendCommand(`quit`);
+                                            this.emit(reason)
+                                        break;
 
-                                    case EVENT_SIGNAL:
-                                        this.emit(reason, this.threadID);
-                                    break;
+                                        case EVENT_SIGNAL:
+                                            this.emit(reason, this.threadID);
+                                        break;
 
-                                    default:
-                                        throw new Error("unknown stop reason: " + reason);
+                                        default:
+                                            throw new Error("unknown stop reason: " + reason);
+                                    }
                                 }
                             break;
 
@@ -403,6 +415,19 @@ export class GDB extends EventEmitter {
                         vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
                             return this.sendCommand(`-exec-continue`);
                         });
+                    });
+                });
+            });
+        });
+    }
+
+    public attachInferior(): Promise<any> {
+        // Only for attach requests
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-gdb-set target-async on`).then(() => {
+                this.sendCommand(`attach ${this.PID}`).then(() => {
+                    this.sendCommand(`-exec-interrupt`).then(() => {
+                        return this.sendCommand(`-exec-continue`);
                     });
                 });
             });

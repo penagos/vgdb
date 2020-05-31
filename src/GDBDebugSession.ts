@@ -16,12 +16,6 @@ import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
 
-/**
- * This interface describes the mock-debug specific launch attributes
- * (which are not part of the Debug Adapter Protocol).
- * The schema for these attributes lives in the package.json of the mock-debug extension.
- * The interface should always match this schema.
- */
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** An absolute path to the "program" to debug. */
 	program: string;
@@ -39,12 +33,19 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     name: string;
 }
 
+interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
+	/** PID of process to debug. */
+    program: number;
+    /** Debugger path */
+    debugger: string;
+}
+
 export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
     private debug: boolean;
     private cwd: string;
-    private tty: string;
+    private attach: boolean = false;
 
     public constructor() {
         super();
@@ -124,17 +125,27 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
         }
 
+    protected async attachRequest(response: DebugProtocol.AttachResponse,
+        args: AttachRequestArguments) {
+            this.log(`Attaching to PID ${args.program}`);
+            this.attach = true;
+            this.GDB.spawn(args.debugger, args.program, undefined).then(() => {
+                this.sendResponse(response);
+            }, (error) => {
+                this.sendErrorResponse(response, 0, error);
+                this.sendEvent(new TerminatedEvent());
+            });
+    }
+
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.cwd = args.cwd;
             this.log(`CWD is ${this.cwd}`);
 
-            this.GDB.spawn(args.debugger, args.program, this.tty, args.args).then(() => {
-                // Success
+            this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 this.sendResponse(response);
             }, (error) => {
-                // Failure
                 this.sendErrorResponse(response, 0, error);
                 this.sendEvent(new TerminatedEvent());
             });
@@ -167,10 +178,16 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Once all breakpoints have been sent and synced with the debugger
             // we can start the inferior. We need to clear the terminal to hide
             // a longstanding GDB warning printed to terminal when changing the
-            // inferior tty
-            this.GDB.startInferior().then(() => {
-                super.configurationDoneRequest(response, args);
-            });
+            // inferior tty. Do not do this for attach requests
+            if (!this.attach) {
+                this.GDB.startInferior().then(() => {
+                    super.configurationDoneRequest(response, args);
+                });
+            } else {
+                this.GDB.attachInferior().then(() => {
+                    super.configurationDoneRequest(response, args);
+                });
+            }
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {

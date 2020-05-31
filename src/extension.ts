@@ -54,6 +54,13 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('extension.vgdb.getProgramPID', config => {
+		return vscode.window.showInputBox({
+			placeHolder: "Enter PID of program to attach to",
+			value: ""
+		});
+	}));
+
 	const provider = new GDBConfigurationProvider()
 	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('vgdb', provider));
 }
