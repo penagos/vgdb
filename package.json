@@ -1,17 +1,20 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"publisher": "penagos",
-	"description": "GDB extension for VSCode",
+	"description": "C/C++ Debugging for VSCode",
 	"author": {
 		"name": "Luis Penagos",
 		"email": "luis@penagos.co"
 	},
 	"license": "MIT",
 	"keywords": [
-		"multi-root ready"
+		"GDB",
+		"C++",
+		"C"
 	],
+	"icon": "resources/vgdb.png",
 	"engines": {
 		"vscode": "^1.33.0",
 		"node": "^10.15.1"
@@ -67,7 +70,7 @@
 		"debuggers": [
 			{
 				"type": "vgdb",
-				"label": "C++ Debug",
+				"label": "vGDB: C/C++ Debug",
 				"program": "./out/debugAdapter.js",
 				"runtime": "node",
 				"configurationAttributes": {
@@ -118,9 +121,10 @@
 					{
 						"type": "vgdb",
 						"request": "launch",
-						"name": "Ask for file name",
-						"program": "${workspaceFolder}/${command:AskForProgramName}",
-						"stopOnEntry": true
+						"name": "${2:Launch}",
+						"program": "${workspaceFolder}/${1:<ProgramPath>}",
+						"args": [],
+						"cwd": "${workspaceFolder}"
 					}
 				],
 				"configurationSnippets": [
@@ -131,9 +135,9 @@
 							"type": "vgdb",
 							"request": "launch",
 							"name": "${2:Launch}",
-							"program": "^\"\\${workspaceFolder}/${1:<ProgramPath>}\"",
+							"program": "${workspaceFolder}/${1:<ProgramPath>}",
 							"args": [],
-							"cwd": "^\"\\${workspaceFolder}\""
+							"cwd": "${workspaceFolder}"
 						}
 					}
 				],

@@ -14,7 +14,8 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 
 ## Quick Start
 
-vGDB ships with sample configurations you can use to quickly get started.
+vGDB ships with a sample launch configuration snippet you can use to quickly get started. Assuming your executable is named `a.out`, getting started is as easy as:
+
 
 ## Configuration
 
