@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging for VSCode",
 	"author": {
