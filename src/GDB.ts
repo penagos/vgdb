@@ -344,16 +344,11 @@ export class GDB extends EventEmitter {
 
     public setBreakpoints(sourceFile: string, bps): Promise<Breakpoint[]>  {
         return new Promise((resolve, reject) => {
-            // Under the hood dispatch to sendCommand for each breakpoint and
-            // only fulfill greater request once all sets have been fulfilled
-            // by GDB
             let bpsPending: Promise<any>[] = [];
             let bpsVerified: Breakpoint[] = [];
 
             if (bps) {
                 bps.forEach((bp) => {
-                    // TODO: move -f flag to setting. We only need this for targets that rely
-                    // on shared libraries which are not immediately loaded on inferior start
                     let promise = this.sendCommand(`-break-insert -f ${sourceFile}:${bp.line}`);
                     bpsPending.push(promise);
                     promise.then((record: ResultRecord) => {
@@ -361,16 +356,13 @@ export class GDB extends EventEmitter {
                         // expression to GDB and update the breakpoint
                         let bpInfo = record.getResult("bkpt");
 
-                        // Update promise
                         if (bp.condition) {
                             promise = this.sendCommand(`-break-condition ${bpInfo.number} ${bp.condition}`);
                             promise.then((record: ResultRecord) => {
-                                let verifiedBp = new Breakpoint(true, bpInfo.line);
-                                bpsVerified.push(verifiedBp);
+                                bpsVerified.push(new Breakpoint(true, bpInfo.line));
                             });
                         } else {
-                            let verifiedBp = new Breakpoint(true, bpInfo.line);
-                            bpsVerified.push(verifiedBp);
+                            bpsVerified.push(new Breakpoint(true, bpInfo.line));
                         }
                     });
                 });
@@ -466,10 +458,8 @@ export class GDB extends EventEmitter {
     public getThreads(): Promise<any> {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-thread-info`).then((record: ResultRecord) => {
-                let threads = record.getResult("threads");
                 let threadsResult: Thread[] = [];
-
-                threads.forEach(thread => {
+                record.getResult("threads").forEach(thread => {
                     threadsResult.push(new Thread(parseInt(thread.id), thread.name));
                 });
 
@@ -485,15 +475,13 @@ export class GDB extends EventEmitter {
     public getStack(threadID: number): Promise<any> {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-stack-list-frames --thread ${threadID}`).then((record: ResultRecord) => {
-                let stack = record.getResult("stack");
                 let stackFinal: StackFrame[] = [];
-                let name, src;
-
-                stack.forEach(frame => {
+                record.getResult("stack").forEach(frame => {
                     frame = frame[1];
-                    name = frame.func + '@' + frame.addr;
-                    src = new Source(frame.file, frame.fullname);
-                    stackFinal.push(new StackFrame(threadID + parseInt(frame.level), name, src, parseInt(frame.line)));
+                    stackFinal.push(new StackFrame(threadID + parseInt(frame.level),
+                                                   frame.func + '@' + frame.addr,
+                                                   new Source(frame.file, frame.fullname),
+                                                   parseInt(frame.line)));
                 });
 
                 resolve(stackFinal);
