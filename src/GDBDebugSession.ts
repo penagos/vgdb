@@ -127,7 +127,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async attachRequest(response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments) {
-            this.log(`Attaching to PID ${args.program}`);
             this.attach = true;
             this.GDB.spawn(args.debugger, args.program, undefined).then(() => {
                 this.sendResponse(response);
@@ -141,7 +140,6 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.cwd = args.cwd;
-            this.log(`CWD is ${this.cwd}`);
 
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 this.sendResponse(response);
@@ -190,7 +188,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-        this.log(`Threads request`);
         if (this.GDB.isStopped()) {
             this.GDB.getThreads().then((threads: Thread[]) => {
                 response.body = {
@@ -205,7 +202,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments): void {
-            this.log(`Stacktrace request`);
             this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
                 response.body = {
                     stackFrames: stack,
@@ -217,7 +213,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments): void {
-            this.log(`Scopes request (frameID is ${args.frameId})`);
             // We will always create the same scopes regardless of the state of the
             // debugger
             response.body = {
@@ -231,7 +226,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected variablesRequest(response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments,
         request?: DebugProtocol.Request) {
-            this.log(`Variables request`);
             // For now we assume all requests are for SCOPE_LOCAL -- will need to
             // be revisited once support for additional scopes is added
             this.GDB.getVars(args.variablesReference).then((vars: any[]) => {
@@ -295,7 +289,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 // We cannot simply send it while the process is running -- we need
                 // to trigger an interrupt, issue the command, and continue execution
                 if (!this.GDB.isStopped()) {
-                    this.log("REPL: need to pause inferior");
                     this.GDB.pause().then(() => {
                         this.GDB.execUserCmd(args.expression, args.frameId).then((result: Record) => {
 
@@ -306,7 +299,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                         });
                     });
                 } else {
-                    this.log("REPL: inferior already paused");
                     this.GDB.execUserCmd(args.expression, args.frameId).then((result: Record) => {
                         this.sendResponse(response);
                     });
@@ -330,7 +322,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
 	protected pauseRequest(response: DebugProtocol.PauseResponse,
 		args: DebugProtocol.PauseArguments): void {
-            this.log(`Pause request`);
             this.GDB.pause().then(() => {
                 this.sendResponse(response);
             });
