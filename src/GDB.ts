@@ -69,9 +69,6 @@ export class GDB extends EventEmitter {
     // Output buffering for stdout pipe
     private ob: string;
 
-    // Track if GDB is initialized
-    private initialized: boolean;
-
     // Inferior PID for attach requests
     private PID: number;
 
@@ -201,25 +198,14 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             const token = ++this.token;
             cmd = token + cmd;
-
             this.log(cmd);
-            console.warn(cmd);
             this.inputHandle.write(cmd + '\n');
 
             this.handlers[token] = (record: Record) => {
                 this.log(record.prettyPrint());
-                console.log(record.prettyPrint());
 				resolve(record);
 			};
         });
-    }
-
-    public isInitialized() {
-        return this.initialized;
-    }
-
-    public setInitialized() {
-        this.initialized = true;
     }
 
     // Called on any stdout produced by GDB Process
@@ -249,8 +235,6 @@ export class GDB extends EventEmitter {
                         if (record.constructor == StreamRecord) {
                             this.emit(EVENT_OUTPUT, record.prettyPrint());
                         }
-                    } else if (!this.isInitialized()) {
-                        this.setInitialized();
                     }
                 } catch(error) {
                     // Relay error state to debug session
@@ -404,8 +388,8 @@ export class GDB extends EventEmitter {
     public startInferior(): Promise<any> {
         // Launch the debuggee target -- we need to do some magic here to hide
         // the longstanding GDB bug when redirecting inferior output to a
-        // different tty. So we set a breakpoint at the first instruction,
-        // clear the active terminal and continue on our merry way.
+        // different tty. So we clear the active terminal and continue on our
+        // merry way.
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 return this.sendCommand(`-exec-run`).then(() => {
@@ -420,9 +404,7 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 this.sendCommand(`attach ${this.PID}`).then(() => {
-                    this.sendCommand(`-exec-interrupt`).then(() => {
-                        return this.sendCommand(`-exec-continue`);
-                    });
+                    return this.sendCommand(`-exec-continue`);
                 });
             });
         });
