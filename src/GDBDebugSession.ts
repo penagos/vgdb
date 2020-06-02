@@ -47,7 +47,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
     private debug: boolean;
-    private cwd: string;
     private attach: boolean = false;
 
     public constructor() {
@@ -87,6 +86,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.GDB.on(EVENT_OUTPUT, (text: string) => {
                 // Massage GDB output as much as possible
                 text = text.replace(/^~"[0-9]*/g, '')
+                           .replace(/&"/g, '')
                            .replace(/"$/g, '')
                            .replace(/"$/g, '')
                            .replace(/\\n/g, '')
@@ -158,8 +158,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
-            this.cwd = args.cwd;
-
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
                 this.sendResponse(response);
             }, (error) => {
@@ -173,14 +171,16 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.SetBreakpointsArguments): void {
             this.GDB.clearBreakpoints().then(() => {
                 // If relative paths are to be used, strip out the CWD from the source path
+                /*
                 let sourcePath = args.source.path || "";
                 sourcePath = sourcePath.replace(this.cwd, "");
 
                 if (sourcePath[0] == '/') {
                     sourcePath = sourcePath.substr(1);
                 }
+*/
 
-                this.GDB.setBreakpoints(sourcePath, args.breakpoints).then(bps => {
+                this.GDB.setBreakpoints(args.source.path || "", args.breakpoints).then(bps => {
                     response.body = {
                         breakpoints: bps
                     };
@@ -207,27 +207,25 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-        if (this.GDB.isStopped()) {
-            this.GDB.getThreads().then((threads: Thread[]) => {
-                response.body = {
-                    threads: threads
-                };
-                this.sendResponse(response);
-            });
-        } else {
+        this.GDB.getThreads().then((threads: Thread[]) => {
+            response.body = {
+                threads: threads
+            };
             this.sendResponse(response);
-        }
+        });
     }
 
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments): void {
-            this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
-                response.body = {
-                    stackFrames: stack,
-                    totalFrames: stack.length - 1
-                };
-                this.sendResponse(response);
-            });
+            if (this.GDB.isStopped()) {
+                this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
+                    response.body = {
+                        stackFrames: stack,
+                        totalFrames: stack.length - 1
+                    };
+                    this.sendResponse(response);
+                });
+            }
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,

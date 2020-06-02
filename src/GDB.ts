@@ -408,13 +408,15 @@ export class GDB extends EventEmitter {
         // clear the active terminal and continue on our merry way.
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
-                this.sendCommand(`-exec-run`).then(() => {
+                return this.sendCommand(`-exec-run`);
+                
+                /*.then(() => {
                     this.sendCommand(`-exec-interrupt`).then(() => {
                         vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
                             return this.sendCommand(`-exec-continue`);
                         });
                     });
-                });
+                });*/
             });
         });
     }
@@ -558,7 +560,8 @@ export class GDB extends EventEmitter {
         return this.sendCommand(`-exec-finish --thread ${threadID}`);
     }
 
-    public pause(): Promise<any> {
-        return this.sendCommand(`-exec-interrupt`);
+    public pause(threadID?: number): Promise<any> {
+        let tid = threadID !== undefined ? `--thread ${threadID}` : ``;
+        return this.sendCommand(`-exec-interrupt ${tid}`);
     }
 }
