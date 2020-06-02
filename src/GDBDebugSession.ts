@@ -11,15 +11,18 @@ import {
     OutputEvent,
     Variable
 } from 'vscode-debugadapter';
-import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED, EVENT_ERROR, EVENT_ERROR_FATAL } from './GDB';
+import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING,
+         EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT,
+         EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED, EVENT_ERROR,
+         EVENT_ERROR_FATAL } from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
 
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-	/** An absolute path to the "program" to debug. */
+	/** Absolute program to path to debug */
 	program: string;
-	/** Automatically stop target after launch. If not specified, target does not stop. */
+	/** Should inferior immediately stop? */
 	stopOnEntry?: boolean;
 	/** enable logging the Debug Adapter Protocol */
     trace?: boolean;
@@ -60,10 +63,15 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.GDB = new GDB(this.outputChannel);
     }
 
-    protected log(text: string) {
+    protected log(text: string) : void {
         if (this.debug) {
             this.outputChannel.appendLine(text);
         }
+    }
+
+    protected error(text: string) : void {
+        console.error(text);
+        vscode.window.showErrorMessage(text);
     }
 
     protected async initializeRequest(
@@ -71,7 +79,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
             // Bind error handler for unexpected GDB errors
             this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
-                console.error("vGDB has encountered a fatal error. Please report this error on http://www.github.com/penagos/vgdb/issues");
+                this.error("vGDB has encountered a fatal error. Please report this error at http://www.github.com/penagos/vgdb/issues");
                 this.sendEvent(new TerminatedEvent());
             });
 
