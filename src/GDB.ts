@@ -214,8 +214,8 @@ export class GDB extends EventEmitter {
         let str = data.toString('utf8');
         this.ob += str;
 
-        // We may be receiving buffered output. In such case defer parser until
-        // full output has been transmitted as denoted by \n
+        // We may be receiving buffered output. In such case defer parsing until
+        // full output has been transmitted as denoted by a trailing newline
         let nPos = this.ob.lastIndexOf('\n')
         if (nPos != -1) {
             this.ob = this.ob.substr(0, nPos);
@@ -226,7 +226,7 @@ export class GDB extends EventEmitter {
             // Flush output buffer for next round of output
             this.ob = this.ob.substring(nPos + 1);
 
-            for (let line of lines) {
+            lines.forEach(line => {
                 try {
                     if (record = this.parser.parse(line)) {
                         this.handleParsedResult(record);
@@ -236,12 +236,11 @@ export class GDB extends EventEmitter {
                             this.emit(EVENT_OUTPUT, record.prettyPrint());
                         }
                     }
-                } catch(error) {
-                    // Relay error state to debug session
+                } catch (error) {
                     console.error(error.stack);
                     this.emit(EVENT_ERROR_FATAL);
                 }
-            }
+            });
         }
     }
 
@@ -448,6 +447,7 @@ export class GDB extends EventEmitter {
             // event to trick VSCode into re-requesting the stacktrace.
             // TODO: this will not cause the right stackframe to be selected as
             // the debug adapter protocol does not support this
+            // See https://github.com/microsoft/debug-adapter-protocol/issues/118
             if (expr == "up" || expr == "down") {
                 this.emit(EVENT_RUNNING, this.threadID, true);
                 this.emit(EVENT_PAUSED);
