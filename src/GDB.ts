@@ -355,9 +355,7 @@ export class GDB extends EventEmitter {
     }
 
     public clearBreakpoints(): Promise<any>  {
-        return new Promise((resolve, reject) => {
-
-        });
+        return this.sendCommand(`-break-delete`);
     }
 
     public setBreakpoints(sourceFile: string, bps): Promise<Breakpoint[]>  {

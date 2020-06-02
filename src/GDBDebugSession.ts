@@ -154,22 +154,21 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected setBreakPointsRequest (
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): void {
-            this.log(`Breakpoints request`);
-            this.GDB.clearBreakpoints();
+            this.GDB.clearBreakpoints().then(() => {
+                // If relative paths are to be used, strip out the CWD from the source path
+                let sourcePath = args.source.path || "";
+                sourcePath = sourcePath.replace(this.cwd, "");
 
-            // If relative paths are to be used, strip out the CWD from the source path
-            let sourcePath = args.source.path || "";
-            sourcePath = sourcePath.replace(this.cwd, "");
+                if (sourcePath[0] == '/') {
+                    sourcePath = sourcePath.substr(1);
+                }
 
-            if (sourcePath[0] == '/') {
-                sourcePath = sourcePath.substr(1);
-            }
-
-            this.GDB.setBreakpoints(sourcePath, args.breakpoints).then(bps => {
-                response.body = {
-                    breakpoints: bps
-                };
-                this.sendResponse(response);
+                this.GDB.setBreakpoints(sourcePath, args.breakpoints).then(bps => {
+                    response.body = {
+                        breakpoints: bps
+                    };
+                    this.sendResponse(response);
+                });
             });
         }
 
