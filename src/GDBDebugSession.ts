@@ -85,7 +85,18 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             // Pipe to debug console
             this.GDB.on(EVENT_OUTPUT, (text: string) => {
-                this.sendEvent(new OutputEvent(text, 'console'));
+                // Massage GDB output as much as possible
+                text = text.replace(/^~"[0-9]*/g, '')
+                           .replace(/"$/g, '')
+                           .replace(/"$/g, '')
+                           .replace(/\\n/g, '')
+                           .replace(/\\r/g, '')
+                           .replace(/\\t/g, '\t')
+                           .replace(/\\v/g, '\v')
+                           .replace(/\\\"/g, '\"')
+                           .replace(/\\\'/g, '\'')
+                           .replace(/\\\\/g, '\\');
+                this.sendEvent(new OutputEvent(text + '\n', 'console'));
             });
 
             // Events triggered by debuggeer

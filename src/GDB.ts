@@ -247,7 +247,7 @@ export class GDB extends EventEmitter {
  
                         // Minimize the amount of logging
                         if (record.constructor == StreamRecord) {
-                            this.emit(EVENT_OUTPUT, record.prettyPrint() + '\n');
+                            this.emit(EVENT_OUTPUT, record.prettyPrint());
                         }
                     } else if (!this.isInitialized()) {
                         this.setInitialized();
