@@ -136,7 +136,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body = response.body || {};
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;
-            response.body.supportsConfigurationDoneRequest = true;
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsTerminateRequest = true;
 
@@ -159,7 +158,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
-                this.sendResponse(response);
+                if (!this.attach) {
+                    return this.GDB.startInferior();
+                } else {
+                    return this.GDB.attachInferior();
+                }
             }, (error) => {
                 this.sendErrorResponse(response, 0, error);
                 this.sendEvent(new TerminatedEvent());
@@ -189,23 +192,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             });
         }
 
-    protected configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
-        args: DebugProtocol.ConfigurationDoneArguments): void {
-            // Once all breakpoints have been sent and synced with the debugger
-            // we can start the inferior. We need to clear the terminal to hide
-            // a longstanding GDB warning printed to terminal when changing the
-            // inferior tty. Do not do this for attach requests
-            if (!this.attach) {
-                this.GDB.startInferior().then(() => {
-                    super.configurationDoneRequest(response, args);
-                });
-            } else {
-                this.GDB.attachInferior().then(() => {
-                    super.configurationDoneRequest(response, args);
-                });
-            }
-    }
-
     protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
         this.GDB.getThreads().then((threads: Thread[]) => {
             response.body = {
@@ -217,15 +203,13 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments): void {
-            if (this.GDB.isStopped()) {
-                this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
-                    response.body = {
-                        stackFrames: stack,
-                        totalFrames: stack.length - 1
-                    };
-                    this.sendResponse(response);
-                });
-            }
+            this.GDB.getStack(args.threadId).then((stack: StackFrame[]) => {
+                response.body = {
+                    stackFrames: stack,
+                    totalFrames: stack.length - 1
+                };
+                this.sendResponse(response);
+            });
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,

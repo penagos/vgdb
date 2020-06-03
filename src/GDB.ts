@@ -479,7 +479,7 @@ export class GDB extends EventEmitter {
                 record.getResult("stack").forEach(frame => {
                     frame = frame[1];
                     stackFinal.push(new StackFrame(threadID + parseInt(frame.level),
-                                                   frame.func + '@' + frame.addr,
+                                                   frame.func,
                                                    new Source(frame.file, frame.fullname),
                                                    parseInt(frame.line)));
                 });
