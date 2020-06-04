@@ -9,6 +9,7 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 - Debug Console prompt accepts native GDB commands
 - Honors deferred symbol loading settings in `.gdbinit`
 - Supports attach requests
+- Supports remoteSSH
 
 ## Quick Start
 
