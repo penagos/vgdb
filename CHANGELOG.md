@@ -1,18 +1,18 @@
 # Release Notes
 
-# 0.1.22
+## 0.1.22 (June/3/2020)
 
-# Enhancements
+### Enhancements
 - Removed frame address from stack
 
-## Fixed
+### Fixed
 - Pause request not responding
 - Multiple threads now shown on running processes
 - Attach request fixed to accept pause requests
 
-# 0.1.21
+## 0.1.21 (June/2/2020)
 
-## Fixed
+### Fixed
 - Debug console output not properly stripping special characters
 - Breakpoints not being able to be removed
 - Other minor improvements
