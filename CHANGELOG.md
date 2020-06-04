@@ -1,4 +1,5 @@
 # Release Notes
+**This extension is under active development**
 
 ## 0.1.22 (June/3/2020)
 
