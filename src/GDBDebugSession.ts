@@ -9,12 +9,14 @@ import {
     Scope,
     ContinuedEvent,
     OutputEvent,
-    Variable
+    Variable,
+    ThreadEvent
 } from 'vscode-debugadapter';
 import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING,
          EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT,
          EVENT_SIGNAL, SCOPE_LOCAL, EVENT_PAUSED, EVENT_ERROR,
-         EVENT_ERROR_FATAL } from './GDB';
+         EVENT_ERROR_FATAL, 
+         EVENT_THREAD_NEW} from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel } from 'vscode';
@@ -47,7 +49,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
     private debug: boolean;
-    private attach: boolean = false;
 
     public constructor() {
         super();
@@ -133,24 +134,24 @@ export class GDBDebugSession extends LoggingDebugSession {
                 vscode.window.showErrorMessage(msg);
             });
 
+            this.GDB.on(EVENT_THREAD_NEW, (threadID: number) => {
+                this.sendEvent(new ThreadEvent('started', threadID));
+            });
+
             response.body = response.body || {};
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsSetVariable = true;
             response.body.supportsEvaluateForHovers = true;
             response.body.supportsTerminateRequest = true;
-
+            response.body.supportsConfigurationDoneRequest = true;
             this.sendResponse(response);
             this.sendEvent(new InitializedEvent());
         }
 
     protected async attachRequest(response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments) {
-            this.attach = true;
             this.GDB.spawn(args.debugger, args.program, undefined).then(() => {
                 this.sendResponse(response);
-            }, (error) => {
-                this.sendErrorResponse(response, 0, error);
-                this.sendEvent(new TerminatedEvent());
             });
     }
 
@@ -158,31 +159,28 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.GDB.spawn(args.debugger, args.program, args.args).then(() => {
-                if (!this.attach) {
-                    return this.GDB.startInferior();
-                } else {
-                    return this.GDB.attachInferior();
-                }
-            }, (error) => {
-                this.sendErrorResponse(response, 0, error);
-                this.sendEvent(new TerminatedEvent());
+                this.sendResponse(response);
             });
+    }
+
+    protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
+        args: DebugProtocol.ConfigurationDoneArguments) {
+            // Only send initialized response once GDB is fully spawned
+            if (!this.GDB.PID) {
+                this.GDB.startInferior().then(() => {
+                    this.sendResponse(response);
+                });
+            } else {
+                this.GDB.attachInferior().then(() => {
+                    this.sendResponse(response);
+                });
+            }
     }
 
     protected setBreakPointsRequest (
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): void {
             this.GDB.clearBreakpoints().then(() => {
-                // If relative paths are to be used, strip out the CWD from the source path
-                /*
-                let sourcePath = args.source.path || "";
-                sourcePath = sourcePath.replace(this.cwd, "");
-
-                if (sourcePath[0] == '/') {
-                    sourcePath = sourcePath.substr(1);
-                }
-*/
-
                 this.GDB.setBreakpoints(args.source.path || "", args.breakpoints).then(bps => {
                     response.body = {
                         breakpoints: bps

@@ -21,6 +21,7 @@ export const EVENT_SIGNAL = "signal-received";
 export const EVENT_PAUSED = "paused";
 export const EVENT_ERROR = "error";
 export const EVENT_ERROR_FATAL = "error-fatal";
+export const EVENT_THREAD_NEW = "thread-created";
 
 export const SCOPE_LOCAL = 1;
 
@@ -31,7 +32,7 @@ export class GDB extends EventEmitter {
 
     // Arguments to pass to GDB. These will be combined with any that need to
     // be threaded to the inferior process
-    private args: string[] = ['--interpreter=mi2', '-q', '--tty=`tty`'];
+    private args: string[] = ['--interpreter=mi', '-q', '--tty=`tty`'];
 
     // This instance will handle all MI output parsing
     private parser: MIParser;
@@ -70,7 +71,9 @@ export class GDB extends EventEmitter {
     private ob: string;
 
     // Inferior PID for attach requests
-    private PID: number;
+    public PID: number = 0;
+
+    private setInitialized;
 
     public constructor(outputChannel: OutputChannel) {
         super();
@@ -87,6 +90,14 @@ export class GDB extends EventEmitter {
         // do this in the constructor to give sufficient time for the FIFO pipe
         // creation prior to writing to it
         this.createIOPipes();
+    }
+
+    public isInitialized(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.setInitialized = () => {
+                resolve();
+			};
+        });
     }
 
     private createIOPipes() {
@@ -187,9 +198,7 @@ export class GDB extends EventEmitter {
                 this.stdoutHandler(data);
             });
 
-            this.inputHandle.on('open', () => {
-                resolve();
-            });
+            resolve();
         });
     }
 
@@ -305,7 +314,10 @@ export class GDB extends EventEmitter {
                     break;
 
                     case AsyncRecordType.NOTIFY:
-                    
+                        // Listen for thread events
+                        if (record.getClass() == EVENT_THREAD_NEW) {
+                            this.emit(EVENT_THREAD_NEW, record.getResult("id"));
+                        }
                     break;
 
                     case AsyncRecordType.STATUS:
@@ -384,7 +396,10 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 return this.sendCommand(`-exec-run`).then(() => {
-                    return vscode.commands.executeCommand('workbench.action.terminal.clear');
+                    vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
+                        this.setInitialized();
+                        resolve();
+                    });
                 });
             });
         });
@@ -395,6 +410,7 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 this.sendCommand(`attach ${this.PID}`).then(() => {
+                    this.setInitialized();
                     return this.sendCommand(`-exec-continue`);
                 });
             });
@@ -459,10 +475,11 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-thread-info`).then((record: ResultRecord) => {
                 let threadsResult: Thread[] = [];
-                record.getResult("threads").forEach(thread => {
-                    threadsResult.push(new Thread(parseInt(thread.id), thread.name));
-                });
-
+                let threads = record.getResult("threads");
+                for (var i = 0, len = threads.length; i < len; i++) {
+                    let thread = new Thread(parseInt(threads[i].id), threads[i].name);
+                    threadsResult.push(thread);
+                }
                 resolve(threadsResult);
             });
         });

@@ -34,7 +34,7 @@ export abstract class Record {
         this.results[result[0]] = result[1];
     }
 
-    public getResult(key: string) {
+    public getResult(key: string) : any {
         return this.results[key];
     }
 
