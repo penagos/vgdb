@@ -396,6 +396,7 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 return this.sendCommand(`-exec-run`).then(() => {
+                    // TODO: timing on this seems to be off for remoteSSH
                     vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
                         this.setInitialized();
                         resolve();
@@ -410,8 +411,11 @@ export class GDB extends EventEmitter {
         return new Promise((resolve, reject) => {
             this.sendCommand(`-gdb-set target-async on`).then(() => {
                 this.sendCommand(`attach ${this.PID}`).then(() => {
-                    this.setInitialized();
-                    return this.sendCommand(`-exec-continue`);
+                    // TODO: will likely need to clear terminal as well like in launchRequest
+                    return this.sendCommand(`-exec-continue`).then(() => {
+                        this.setInitialized();
+                        resolve();
+                    });
                 });
             });
         });
