@@ -321,7 +321,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
 	protected pauseRequest(response: DebugProtocol.PauseResponse,
 		args: DebugProtocol.PauseArguments): void {
-            this.GDB.pause().then(() => {
+            this.GDB.pause(args.threadId).then(() => {
                 this.sendResponse(response);
             });
     }

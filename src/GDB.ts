@@ -546,7 +546,6 @@ export class GDB extends EventEmitter {
     }
 
     public pause(threadID?: number): Promise<any> {
-        let tid = threadID !== undefined ? `--thread ${threadID}` : ``;
-        return this.sendCommand(`-exec-interrupt ${tid}`);
+        return this.sendCommand(`-exec-interrupt ${threadID || ""}`);
     }
 }
