@@ -5,7 +5,7 @@ import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
-import { OutputChannel } from "vscode";
+import { OutputChannel, Terminal } from "vscode";
 import * as vscode from "vscode";
 import * as fs from 'fs';
 import * as ts from 'tail-stream';
@@ -51,7 +51,7 @@ export class GDB extends EventEmitter {
     private threadID: number;
 
     private outputChannel: OutputChannel;
-    private outputTerminal: vscode.Terminal;
+    private outputTerminal: Terminal;
 
     // Control whether or not to dump extension diagnostic information to a
     // dedicated output channel (useful for development)
@@ -73,7 +73,7 @@ export class GDB extends EventEmitter {
     // Inferior PID for attach requests
     public PID: number = 0;
 
-    public constructor(outputChannel: OutputChannel) {
+    public constructor(outputChannel: OutputChannel, terminal: Terminal) {
         super();
 
         this.outputChannel = outputChannel;
@@ -82,6 +82,16 @@ export class GDB extends EventEmitter {
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
+
+        // We need to spawn a new terminal & run a tty command to setup the
+        // proper pipe from the inferior's stdout/stderr to such terminal
+        // In order to get the results of the tty command we need to
+        // temporarily redirect the output to a known file
+        this.outputTerminal = terminal;
+
+        // If there was a prior launch that used the same output terminal we
+        // need to clear prior output
+        this.outputTerminal.sendText(`clear`);
 
         // This is a bit of a hack -- since there is no elegant way of making a
         // FIFO pipe in nodeJS we need to resort to a shell to do so. We need to
@@ -140,12 +150,6 @@ export class GDB extends EventEmitter {
                  program: any,
                  args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
-            // We need to spawn a new terminal & run a tty command to setup the
-            // proper pipe from the inferior's stdout/stderr to such terminal
-            // In order to get the results of the tty command we need to
-            // temporarily redirect the output to a known file
-            this.outputTerminal = vscode.window.createTerminal(`vGDB`);
-
             // Spawn the GDB process in the integrated terminal. In order to
             // correctly separate inferior output from GDB output and pipe
             // them to the correct handlers we use some hacks:

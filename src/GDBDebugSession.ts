@@ -19,7 +19,7 @@ import { GDB, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_RUNNING,
          EVENT_THREAD_NEW} from './GDB';
 import { Record } from "./parser/Record";
 import * as vscode from "vscode";
-import { OutputChannel } from 'vscode';
+import { OutputChannel, Terminal } from 'vscode';
 
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** Absolute program to path to debug */
@@ -48,19 +48,20 @@ interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
 export class GDBDebugSession extends LoggingDebugSession {
     private GDB: GDB;
     private outputChannel: OutputChannel;
+    private terminal: Terminal;
     private debug: boolean;
 
-    public constructor() {
+    public constructor(terminal: Terminal, outputChannel: OutputChannel) {
         super();
         this.debug = true;
 
         // The outputChannel is to separate debug logging from the adapter
         // from the output of GDB. We need to clear it on each launch
         // request to remove stale output from prior runs
-        this.outputChannel = vscode.window.createOutputChannel("vGDB");
+        this.terminal = terminal;
+        this.outputChannel = outputChannel;
         this.outputChannel.clear();
-
-        this.GDB = new GDB(this.outputChannel);
+        this.GDB = new GDB(this.outputChannel, this.terminal);
     }
 
     protected log(text: string) : void {

@@ -1,12 +1,19 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { WorkspaceFolder, DebugConfiguration, CancellationToken, ProviderResult } from 'vscode';
+import { WorkspaceFolder, DebugConfiguration, CancellationToken, ProviderResult, OutputChannel, Terminal } from 'vscode';
 import { GDBDebugSession } from './GDBDebugSession';
 import * as Net from 'net';
 
 class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 	private server?: Net.Server;
+	private terminal: Terminal;
+	private outputChannel: OutputChannel;
+
+	public constructor(terminal: Terminal, outputChannel: OutputChannel) {
+		this.terminal = terminal;
+		this.outputChannel = outputChannel;
+	}
 
 	/**
 	 * Massage a debug configuration just before a debug session is being launched,
@@ -30,7 +37,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 		if (!this.server) {
 			// start listening on a random port
 			this.server = Net.createServer(socket => {
-				const session = new GDBDebugSession();
+				const session = new GDBDebugSession(this.terminal, this.outputChannel);
 				session.setRunAsServer(true);
 				session.start(<NodeJS.ReadableStream>socket, socket);
 			}).listen(0);
@@ -61,7 +68,10 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	}));
 
-	const provider = new GDBConfigurationProvider()
+	// Create the debug output and terminal windows once on activation event
+	// to prevent spawning new terminals on each launch request
+	const provider = new GDBConfigurationProvider(vscode.window.createTerminal(`vGDB`),
+												  vscode.window.createOutputChannel("vGDB"));
 	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('vgdb', provider));
 }
 
