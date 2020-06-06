@@ -92,14 +92,6 @@ export class GDB extends EventEmitter {
         this.createIOPipes();
     }
 
-    public isInitialized(): Promise<any> {
-        return new Promise((resolve, reject) => {
-            this.setInitialized = () => {
-                resolve();
-			};
-        });
-    }
-
     private createIOPipes() {
         this.inputFile = this.generateTmpFile('In') + this.token;
         this.outputFile = this.generateTmpFile('Out') + this.token;
@@ -398,7 +390,6 @@ export class GDB extends EventEmitter {
                 return this.sendCommand(`-exec-run`).then(() => {
                     // TODO: timing on this seems to be off for remoteSSH
                     vscode.commands.executeCommand('workbench.action.terminal.clear').then(() => {
-                        this.setInitialized();
                         resolve();
                     });
                 });
@@ -413,7 +404,6 @@ export class GDB extends EventEmitter {
                 this.sendCommand(`attach ${this.PID}`).then(() => {
                     // TODO: will likely need to clear terminal as well like in launchRequest
                     return this.sendCommand(`-exec-continue`).then(() => {
-                        this.setInitialized();
                         resolve();
                     });
                 });
