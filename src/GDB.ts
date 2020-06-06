@@ -73,8 +73,6 @@ export class GDB extends EventEmitter {
     // Inferior PID for attach requests
     public PID: number = 0;
 
-    private setInitialized;
-
     public constructor(outputChannel: OutputChannel) {
         super();
 
@@ -537,5 +535,15 @@ export class GDB extends EventEmitter {
 
     public pause(threadID?: number): Promise<any> {
         return this.sendCommand(`-exec-interrupt ${threadID || ""}`);
+    }
+
+    public quit(attach: boolean): Promise<any> {
+        return new Promise(async (resolve, reject) => { 
+            if (attach) {
+                await this.sendCommand(`detach`);
+            }
+
+            return this.sendCommand(`-gdb-exit`);
+        });
     }
 }

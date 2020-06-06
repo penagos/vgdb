@@ -330,4 +330,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.TerminateArguments): void {
             this.sendResponse(response);
     }
+
+    protected disconnectRequest(response: DebugProtocol.DisconnectResponse,
+        args: DebugProtocol.DisconnectArguments): void {
+            // If this was an attach request do not kill the inferior
+            this.GDB.quit((args.terminateDebuggee == true)).then(() => {
+                this.sendResponse(response);
+            });
+    }
 }
