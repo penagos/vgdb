@@ -1,6 +1,13 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.1.23 (June/6/2020)
+
+### Fixed
+- GDB now killed on exiting a debug session
+- Attached-to processes are not killed anymore on GDB detach
+- Reuse same output channel and terminal across multiple debug sessions
+
 ## 0.1.22 (June/3/2020)
 
 ### Enhancements
