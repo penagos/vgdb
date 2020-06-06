@@ -87,17 +87,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Pipe to debug console
             this.GDB.on(EVENT_OUTPUT, (text: string) => {
                 // Massage GDB output as much as possible
-                text = text.replace(/^~"[0-9]*/g, '')
-                           .replace(/&"/g, '')
-                           .replace(/"$/g, '')
-                           .replace(/"$/g, '')
-                           .replace(/\\n/g, '')
-                           .replace(/\\r/g, '')
-                           .replace(/\\t/g, '\t')
-                           .replace(/\\v/g, '\v')
-                           .replace(/\\\"/g, '\"')
-                           .replace(/\\\'/g, '\'')
-                           .replace(/\\\\/g, '\\');
                 this.sendEvent(new OutputEvent(text + '\n', 'console'));
             });
 
@@ -232,6 +221,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                 let variables:Variable[] = [];
 
                 vars.forEach(variable => {
+                    // If this is a string strip out special chars
+                    if (typeof variable.value === 'string') {
+                        variable.value = this.GDB.sanitize(variable.value, false);
+                    }
+
                     variables.push(new Variable(variable.name, variable.value));
                 });
 
@@ -312,7 +306,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 					response.body =
 					{
 						result: result,
-						variablesReference: 1
+						variablesReference: 0
 					};
 					this.sendResponse(response);
                 });

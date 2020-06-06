@@ -211,6 +211,25 @@ export class GDB extends EventEmitter {
         });
     }
 
+    public sanitize(text: string, MI: boolean): string {
+        text = text.replace(/&"/g, '')
+                   .replace(/\\n/g, '')
+                   .replace(/\\r/g, '')
+                   .replace(/\\t/g, '\t')
+                   .replace(/\\v/g, '\v')
+                   .replace(/\\\"/g, '\"')
+                   .replace(/\\\'/g, '\'')
+                   .replace(/\\\\/g, '\\');
+
+        // If we are sanitizing MI output there are additional things we need
+        // to strip out
+        if (MI) {
+            text = text.replace(/^~"[0-9]*/g, '').replace(/"$/g, '');
+        }
+
+        return text;
+    }
+
     // Called on any stdout produced by GDB Process
     private stdoutHandler(data) {
         let record:(Record | null);
@@ -236,7 +255,7 @@ export class GDB extends EventEmitter {
  
                         // Minimize the amount of logging
                         if (record.constructor == StreamRecord) {
-                            this.emit(EVENT_OUTPUT, record.prettyPrint());
+                            this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true));
                         }
                     }
                 } catch (error) {
@@ -426,7 +445,7 @@ export class GDB extends EventEmitter {
             cmd += ` "${expr}"`;
 
             this.sendCommand(cmd).then((record: ResultRecord) => {
-                resolve(record.getResult("value"));
+                resolve(this.sanitize(record.getResult("value"), false));
             });
         });
     }
