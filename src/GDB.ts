@@ -147,6 +147,7 @@ export class GDB extends EventEmitter {
     }
 
     public spawn(debuggerPath: string,
+                 cmds: ([] | undefined),
                  program: any,
                  args: ([] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -192,7 +193,21 @@ export class GDB extends EventEmitter {
                 this.stdoutHandler(data);
             });
 
-            resolve();
+            // Only consider GDB as ready once pipe is ready. Once ready send all setup
+            // cmds to GDB and then resolve promise
+            this.inputHandle.on('open', (data) => {
+                let cmdsPending: Promise<any>[] = [];
+
+                if (cmds) {
+                    cmds.forEach(cmd => {
+                        cmdsPending.push(this.sendCommand(cmd));
+                    });
+                }
+
+                Promise.all(cmdsPending).then(brkpoints => {
+                    resolve();
+                });
+            });
         });
     }
 
