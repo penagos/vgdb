@@ -38,6 +38,8 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     name: string;
     /** GDB commands to run on startp */
     startupCmds?: [];
+    /** Shell variables to set in debugger terminal */
+    envVars?: {};
 }
 
 interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
@@ -143,7 +145,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async attachRequest(response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments) {
             // TODO: support startup commands like LaunchRequest
-            this.GDB.spawn(args.debugger, [], args.program, undefined).then(() => {
+            this.GDB.spawn(args.debugger, {}, [], args.program, undefined).then(() => {
                 this.sendResponse(response);
             });
     }
@@ -151,7 +153,11 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
-            this.GDB.spawn(args.debugger, args.startupCmds, args.program, args.args).then(() => {
+            this.GDB.spawn(args.debugger,
+                           args.envVars || {},
+                           args.startupCmds,
+                           args.program,
+                           args.args).then(() => {
                 this.sendResponse(response);
             });
     }

@@ -104,6 +104,11 @@
 								"description": "Working directory of the target",
 								"default": "${workspaceFolder}"
 							},
+							"env": {
+								"type": "object",
+								"description": "Environment variables to set in debugger shell",
+								"default": {}
+							},
 							"externalConsole": {
 								"type": "boolean",
 								"description": "If true, debug target will spawn a new terminal window",

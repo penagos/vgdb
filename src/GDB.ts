@@ -147,6 +147,7 @@ export class GDB extends EventEmitter {
     }
 
     public spawn(debuggerPath: string,
+                 envVars: Object,
                  cmds: ([] | undefined),
                  program: any,
                  args: ([] | undefined)): Promise<any> {
@@ -184,6 +185,14 @@ export class GDB extends EventEmitter {
 
             let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
             this.log(launchCmd);
+
+            // Send any env vars
+            const envVarsSetupCmd = this.createEnvVarsCmd(envVars);
+
+            if (envVarsSetupCmd != "") {
+                this.outputTerminal.sendText(envVarsSetupCmd);
+            }
+
             this.outputTerminal.sendText(launchCmd);
             this.outputTerminal.show(true);
             this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
@@ -243,6 +252,16 @@ export class GDB extends EventEmitter {
         }
 
         return text;
+    }
+
+    private createEnvVarsCmd(envVars: object) : string {
+        let cmd = "";
+
+        Object.keys(envVars).forEach(function(key) {
+            cmd =  `export ${key} = ${envVars[key]}; ${cmd}`;
+        });
+
+        return cmd;
     }
 
     // Called on any stdout produced by GDB Process
