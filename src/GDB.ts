@@ -23,7 +23,7 @@ export const EVENT_ERROR = "error";
 export const EVENT_ERROR_FATAL = "error-fatal";
 export const EVENT_THREAD_NEW = "thread-created";
 
-export const SCOPE_LOCAL = 1;
+export const SCOPE_LOCAL = 1000;
 
 export class GDB extends EventEmitter {
     // Default path to MI debugger. If none is specified in the launch config
@@ -567,16 +567,10 @@ export class GDB extends EventEmitter {
 
     public getVars(reference: number): Promise<any> {
         return new Promise((resolve, reject) => {
-            switch (reference) {
-                case SCOPE_LOCAL:
-                    this.sendCommand(`-stack-list-variables --all-values`).then((record: Record) => {
-                        resolve(record.getResult("variables"));
-                    });
-                break;
-
-                default:
-                    throw new Error(`Unknown variable reference ${reference}`);
-            }
+            // TODO: support more than just frame locals
+            this.sendCommand(`-stack-list-variables --thread ${this.threadID} --frame ${reference - this.threadID} --all-values`).then((record: Record) => {
+                resolve(record.getResult("variables"));
+            });
         });
     }
 

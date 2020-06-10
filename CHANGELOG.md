@@ -10,6 +10,7 @@
 ### Fixed
 - Sending debug commands while inferior was running invalidated call stack
 - Stop button works on first click
+- Variables pane not updating on stack frame changes
 
 ## 0.1.23 (June/6/2020)
 

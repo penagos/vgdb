@@ -215,7 +215,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             // debugger
             response.body = {
                 scopes: [
-                    new Scope("Local", SCOPE_LOCAL, false)
+                    new Scope("Local", (SCOPE_LOCAL + args.frameId), false)
                 ]
             };
             this.sendResponse(response);
@@ -226,7 +226,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         request?: DebugProtocol.Request) {
             // For now we assume all requests are for SCOPE_LOCAL -- will need to
             // be revisited once support for additional scopes is added
-            this.GDB.getVars(args.variablesReference).then((vars: any[]) => {
+            this.GDB.getVars(args.variablesReference - SCOPE_LOCAL).then((vars: any[]) => {
                 let variables:Variable[] = [];
 
                 vars.forEach(variable => {
