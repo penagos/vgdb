@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.23",
+	"version": "0.1.24",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
@@ -118,6 +118,11 @@
 								"type": "string",
 								"description": "Path to GDB executable",
 								"default": "gdb"
+							},
+							"startupCmds": {
+								"type": "array",
+								"description": "Startup commands to run in GDB",
+								"default": []
 							}
 						}
 					},
