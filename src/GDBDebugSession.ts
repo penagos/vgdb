@@ -292,7 +292,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 // We cannot simply send it while the process is running -- we need
                 // to trigger an interrupt, issue the command, and continue execution
                 if (!this.GDB.isStopped()) {
-                    this.GDB.pause().then(() => {
+                    this.GDB.pause(undefined, false).then(() => {
                         this.GDB.execUserCmd(args.expression, args.frameId).then((result: Record) => {
 
                             // continue execution

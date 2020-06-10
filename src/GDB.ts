@@ -73,6 +73,9 @@ export class GDB extends EventEmitter {
     // Inferior PID for attach requests
     public PID: number = 0;
 
+    // Should we emit a stopped event on a pause?
+    private handleSIGINT: boolean = true;
+
     public constructor(outputChannel: OutputChannel, terminal: Terminal) {
         super();
 
@@ -335,7 +338,13 @@ export class GDB extends EventEmitter {
                                         break;
 
                                         case EVENT_SIGNAL:
-                                            this.emit(reason, this.threadID);
+                                            if (this.handleSIGINT) {
+                                                this.log("got a signal --> " + record.prettyPrint());
+                                                this.emit(reason, this.threadID);
+                                            } else {
+                                                // Reset for next signal since commands are honored in sync
+                                                this.handleSIGINT = true;
+                                            }
                                         break;
 
                                         default:
@@ -592,7 +601,14 @@ export class GDB extends EventEmitter {
         return this.sendCommand(`-exec-finish --thread ${threadID}`);
     }
 
-    public pause(threadID?: number): Promise<any> {
+    // If catchSignal is false, we will not emit a stopped event. This is a
+    // workaround for automatically pausing the debugger for user executed
+    // commands while the inferior is running
+    public pause(threadID?: number, catchSignal?: boolean): Promise<any> {
+        if (catchSignal !== undefined && !catchSignal) {
+            this.handleSIGINT = false;
+        }
+
         return this.sendCommand(`-exec-interrupt ${threadID || ""}`);
     }
 
