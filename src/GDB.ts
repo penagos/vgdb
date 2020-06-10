@@ -550,7 +550,7 @@ export class GDB extends EventEmitter {
 
     public getStack(threadID: number): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.sendCommand(`-stack-list-frames ${threadID}`).then((record: ResultRecord) => {
+            this.sendCommand(`-stack-list-frames --thread ${threadID}`).then((record: ResultRecord) => {
                 let stackFinal: StackFrame[] = [];
                 record.getResult("stack").forEach(frame => {
                     frame = frame[1];
