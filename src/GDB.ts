@@ -142,8 +142,10 @@ export class GDB extends EventEmitter {
         // All of these hacks probably won't work on Windows
         fs.writeFile(this.outputFile, '', () => {});
 
-        let cleanup = `& clear ; pid=$!; set +m ; trap 'echo "quit" > ${this.inputFile}' SIGINT ; wait $pid`;
-        return `${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} ${cleanup}`;
+        // We cannot simply send all commands to the terminal and assume the
+        // user's default shell is bash. Instead we will wrap all cmds in a
+        // string and explicitly invoke the bash shell
+        return `trap '' 2 ; ${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} & clear ; pid=$!; set +m ; wait $pid ; trap 2 ; echo ;`;
     }
 
     public spawn(debuggerPath: string,
@@ -193,7 +195,7 @@ export class GDB extends EventEmitter {
                 this.outputTerminal.sendText(envVarsSetupCmd);
             }
 
-            this.outputTerminal.sendText(launchCmd);
+            this.outputTerminal.sendText(`bash -c "${launchCmd}"`);
             this.outputTerminal.show(true);
             this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
             this.outputHandle = ts.createReadStream(this.outputFile);
