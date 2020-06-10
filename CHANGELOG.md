@@ -1,6 +1,16 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.1.24 (June/9/2020)
+
+### Enhancements
+- Support for GDB setupCmds in launch configurations
+- Support for environment variables in launch configurations
+
+### Fixed
+- Sending debug commands while inferior was running invalidated call stack
+- Stop button works on first click
+
 ## 0.1.23 (June/6/2020)
 
 ### Fixed
