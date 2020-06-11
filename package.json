@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.24",
+	"version": "0.1.25",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
@@ -128,6 +128,11 @@
 								"type": "array",
 								"description": "Disable auto shared library loads in GDB and only load these. If this setting is specified, it will override any auto-solib-add GDB setting",
 								"default": []
+							},
+							"debug": {
+								"type": "boolean",
+								"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
+								"default": false
 							}
 						}
 					},
@@ -144,6 +149,11 @@
 							"type": "string",
 							"description": "Path to GDB executable",
 							"default": "gdb"
+						},
+						"debug": {
+							"type": "boolean",
+							"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
+							"default": false
 						}
 					}
 				},

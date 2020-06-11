@@ -55,7 +55,7 @@ export class GDB extends EventEmitter {
 
     // Control whether or not to dump extension diagnostic information to a
     // dedicated output channel (useful for development)
-    private debug: boolean = true;
+    private debug: boolean = false;
 
     // Filepaths to input and output pipes used for IPC with GDB process. These
     // will be randomly generated on each debug session
@@ -75,6 +75,9 @@ export class GDB extends EventEmitter {
 
     // Should we emit a stopped event on a pause?
     private handleSIGINT: boolean = true;
+
+    // Should we only load certain libraries?
+    private sharedLibraries: string[];
 
     public constructor(outputChannel: OutputChannel, terminal: Terminal) {
         super();
@@ -151,11 +154,15 @@ export class GDB extends EventEmitter {
         return `trap '' 2 ; ${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} & clear ; pid=$!; set +m ; wait $pid ; trap 2 ; echo ;`;
     }
 
+    public setDebug(debug: boolean) {
+        this.debug = debug;
+    }
+
     public spawn(debuggerPath: string,
                  envVars: Object,
-                 cmds: ([] | undefined),
+                 cmds: (string[] | undefined),
                  program: any,
-                 args: ([] | undefined)): Promise<any> {
+                 args: (string[] | undefined)): Promise<any> {
         return new Promise((resolve, reject) => {
             // Spawn the GDB process in the integrated terminal. In order to
             // correctly separate inferior output from GDB output and pipe
@@ -240,6 +247,12 @@ export class GDB extends EventEmitter {
         });
     }
 
+    public deferLibraryLoading(libraries: string[]) : Promise<any> {
+        this.sharedLibraries = libraries;
+        console.log(this.sharedLibraries);
+        return this.sendCommand(`-gdb-set auto-solib-add on`);
+    }
+
     public sanitize(text: string, MI: boolean): string {
         text = text.replace(/&"/g, '')
                    .replace(/\\n/g, '')
@@ -293,7 +306,7 @@ export class GDB extends EventEmitter {
                         this.handleParsedResult(record);
  
                         // Minimize the amount of logging
-                        if (record.constructor == StreamRecord) {
+                        if (record.constructor == StreamRecord || this.debug) {
                             this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true));
                         }
                     }

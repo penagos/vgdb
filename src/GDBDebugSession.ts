@@ -29,7 +29,7 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** enable logging the Debug Adapter Protocol */
     trace?: boolean;
     /** Arguments to pass to inferior */
-    args?: [];
+    args?: string[];
     /** Launch directory */
     cwd: string;
     /** Debugger path */
@@ -37,9 +37,13 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     /** Target name */
     name: string;
     /** GDB commands to run on startp */
-    startupCmds?: [];
+    startupCmds?: string[];
     /** Shell variables to set in debugger terminal */
     envVars?: {};
+    /** Shared libraries for deferred symbol loading */
+    sharedLibraries?: string[];
+    /** Enable verbose debug logging */
+    debug?: boolean;
 }
 
 interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
@@ -47,6 +51,8 @@ interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
     program: number;
     /** Debugger path */
     debugger: string;
+    /** Enable verbose debug logging */
+    debug?: boolean;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -145,6 +151,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async attachRequest(response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments) {
             // TODO: support startup commands like LaunchRequest
+            this.GDB.setDebug(args.debug || false);
             this.GDB.spawn(args.debugger, {}, [], args.program, undefined).then(() => {
                 this.sendResponse(response);
             });
@@ -153,11 +160,19 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
+            this.GDB.setDebug(args.debug || false);
             this.GDB.spawn(args.debugger,
                            args.envVars || {},
-                           args.startupCmds,
+                           args.startupCmds || [],
                            args.program,
                            args.args).then(() => {
+                // If deferred symbols are to be used, set that here
+                if (args.sharedLibraries !== undefined) {
+                    // Since commands are sent in a blocking manner we do not need
+                    // to spin on this request before responding to the launchRequest
+                    this.GDB.deferLibraryLoading(args.sharedLibraries);
+                }
+
                 this.sendResponse(response);
             });
     }
