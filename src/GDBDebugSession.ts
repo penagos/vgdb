@@ -90,7 +90,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.InitializeRequestArguments): Promise<void> {
             // Bind error handler for unexpected GDB errors
             this.GDB.on(EVENT_ERROR_FATAL, (tid: number) => {
-                this.error("vGDB has encountered a fatal error. Please report this error at http://www.github.com/penagos/vgdb/issues");
+                this.error("vGDB has encountered a fatal error. Please check the vGDB output channel and create an issue at http://www.github.com/penagos/vgdb/issues");
                 this.sendEvent(new TerminatedEvent());
             });
 

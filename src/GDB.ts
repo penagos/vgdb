@@ -8,6 +8,7 @@ import { Breakpoint, Thread, StackFrame, Source } from "vscode-debugadapter";
 import { OutputChannel, Terminal } from "vscode";
 import * as vscode from "vscode";
 import * as fs from 'fs';
+import * as path from 'path';
 import * as ts from 'tail-stream';
 
 // GDB stop reasons
@@ -22,6 +23,7 @@ export const EVENT_PAUSED = "paused";
 export const EVENT_ERROR = "error";
 export const EVENT_ERROR_FATAL = "error-fatal";
 export const EVENT_THREAD_NEW = "thread-created";
+export const EVENT_SOLIB_LOADED = "library-loaded";
 
 export const SCOPE_LOCAL = 1000;
 
@@ -77,7 +79,7 @@ export class GDB extends EventEmitter {
     private handleSIGINT: boolean = true;
 
     // Should we only load certain libraries?
-    private sharedLibraries: string[];
+    private sharedLibraries: string[] = [];
 
     public constructor(outputChannel: OutputChannel, terminal: Terminal) {
         super();
@@ -250,7 +252,7 @@ export class GDB extends EventEmitter {
     public deferLibraryLoading(libraries: string[]) : Promise<any> {
         this.sharedLibraries = libraries;
         console.log(this.sharedLibraries);
-        return this.sendCommand(`-gdb-set auto-solib-add on`);
+        return this.sendCommand(`-gdb-set auto-solib-add off`);
     }
 
     public sanitize(text: string, MI: boolean): string {
@@ -311,7 +313,8 @@ export class GDB extends EventEmitter {
                         }
                     }
                 } catch (error) {
-                    console.error(error.stack);
+                    this.log(error.stack);
+                    console.log(error.stack);
                     this.emit(EVENT_ERROR_FATAL);
                 }
             });
@@ -387,6 +390,15 @@ export class GDB extends EventEmitter {
                         // Listen for thread events
                         if (record.getClass() == EVENT_THREAD_NEW) {
                             this.emit(EVENT_THREAD_NEW, record.getResult("id"));
+                        } else if (this.sharedLibraries.length && record.getClass() == EVENT_SOLIB_LOADED) {
+                            // If deferred symbol loading is enabled, check that
+                            // the shared library loaded is in the user specified
+                            // whitelist. If not, unload it
+                            const libLoaded = path.basename(record.getResult("id"));
+                            if (this.sharedLibraries.indexOf(libLoaded) > -1) {
+                                this.log(`Loading ${libLoaded}`);
+                                this.sendCommand(`sharedlibrary ${libLoaded}`);
+                            }
                         }
                     break;
 
