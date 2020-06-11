@@ -123,6 +123,11 @@
 								"type": "array",
 								"description": "Startup commands to run in GDB",
 								"default": []
+							},
+							"sharedLibraries": {
+								"type": "array",
+								"description": "Disable auto shared library loads in GDB and only load these. If this setting is specified, it will override any auto-solib-add GDB setting",
+								"default": []
 							}
 						}
 					},
