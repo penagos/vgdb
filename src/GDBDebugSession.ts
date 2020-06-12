@@ -44,6 +44,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     sharedLibraries?: string[];
     /** Enable verbose debug logging */
     debug?: boolean;
+    /** Should inferior terminal be in VSCode? */
+    externalConsole?: boolean;
 }
 
 export interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
@@ -53,6 +55,8 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     debugger: string;
     /** Enable verbose debug logging */
     debug?: boolean;
+    /** Should inferior terminal be in VSCode? */
+    externalConsole?: boolean;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -71,7 +75,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.terminal = terminal;
         this.outputChannel = outputChannel;
         this.outputChannel.clear();
-        this.GDB = new GDB(this.outputChannel, this.terminal);
+        this.GDB = new GDB(this.outputChannel);
     }
 
     protected log(text: string) : void {
@@ -152,7 +156,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: AttachRequestArguments) {
             // TODO: support startup commands like LaunchRequest
             this.GDB.setDebug(args.debug || false);
-            this.GDB.spawn(args).then(() => {
+            this.GDB.spawn(args, this.terminal).then(() => {
                 this.sendResponse(response);
             });
     }
@@ -161,7 +165,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.GDB.setDebug(args.debug || false);
-            this.GDB.spawn(args).then(() => {
+            this.GDB.spawn(args, this.terminal).then(() => {
                 // If deferred symbols are to be used, set that here
                 if (args.sharedLibraries !== undefined) {
                     // Since commands are sent in a blocking manner we do not need

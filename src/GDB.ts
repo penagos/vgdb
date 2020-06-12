@@ -10,6 +10,7 @@ import * as vscode from "vscode";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'tail-stream';
+import { spawn } from "child_process";
 import { AttachRequestArguments, LaunchRequestArguments } from "./GDBDebugSession";
 
 // GDB stop reasons
@@ -27,6 +28,41 @@ export const EVENT_THREAD_NEW = "thread-created";
 export const EVENT_SOLIB_LOADED = "library-loaded";
 
 export const SCOPE_LOCAL = 1000;
+
+// Used as an abstraction for integrated/non-integrated terminals
+abstract class TerminalWindow {
+    public abstract sendCommand(cmd: string);
+    protected terminal: any;
+};
+
+class IntegratedTerminal extends TerminalWindow {
+    constructor(cmd: string, terminal: Terminal) {
+        super();
+        this.terminal = terminal;
+        this.sendCommand(`clear`);
+        this.sendCommand(cmd);
+        this.terminal.show(true);
+    }
+
+    public sendCommand(cmd: string) {
+        this.terminal.sendText(cmd);
+    }
+};
+
+// Todo implement terminateRequest and close external terminal
+class ExternalTerminal extends TerminalWindow {
+    constructor(cmd: string) {
+        super();
+        this.terminal = spawn("x-terminal-emulator", ["-e", cmd]);
+        this.terminal.on('error', (err) => {
+            console.log("Failed to open external terminal");
+        });
+    }
+
+    public sendCommand(cmd: string) {
+        this.terminal.stdin.write(cmd + '\n');
+    }
+};
 
 export class GDB extends EventEmitter {
     // Default path to MI debugger. If none is specified in the launch config
@@ -54,7 +90,7 @@ export class GDB extends EventEmitter {
     private threadID: number;
 
     private outputChannel: OutputChannel;
-    private outputTerminal: Terminal;
+    private terminal: TerminalWindow;
 
     // Control whether or not to dump extension diagnostic information to a
     // dedicated output channel (useful for development)
@@ -82,7 +118,7 @@ export class GDB extends EventEmitter {
     // Should we only load certain libraries?
     private sharedLibraries: string[] = [];
 
-    public constructor(outputChannel: OutputChannel, terminal: Terminal) {
+    public constructor(outputChannel: OutputChannel) {
         super();
 
         this.outputChannel = outputChannel;
@@ -91,12 +127,6 @@ export class GDB extends EventEmitter {
         this.ob = "";
         this.handlers = [];
         this.parser = new MIParser();
-
-        // We need to spawn a new terminal & run a tty command to setup the
-        // proper pipe from the inferior's stdout/stderr to such terminal
-        // In order to get the results of the tty command we need to
-        // temporarily redirect the output to a known file
-        this.outputTerminal = terminal;
 
         // This is a bit of a hack -- since there is no elegant way of making a
         // FIFO pipe in nodeJS we need to resort to a shell to do so. We need to
@@ -159,15 +189,10 @@ export class GDB extends EventEmitter {
         return arg && typeof(arg.program) == 'string';
     }
 
-    public spawn(args: (LaunchRequestArguments | AttachRequestArguments)): Promise<any> {
+    public spawn(args: (LaunchRequestArguments | AttachRequestArguments),
+                 terminal: Terminal): Promise<any> {
         return new Promise((resolve, reject) => {
         let envVarsSetupCmd;
-        // If the launch has requested an external terminal, spawn one. If so,
-        // we will not clear the old terminal. We only clear the integrated
-        // terminal if we will be reusing it
-
-        this.outputTerminal.sendText(`clear`);
-
             // Spawn the GDB process in the integrated terminal. In order to
             // correctly separate inferior output from GDB output and pipe
             // them to the correct handlers we use some hacks:
@@ -206,12 +231,19 @@ export class GDB extends EventEmitter {
             let launchCmd = this.createLaunchCommand();
             this.log(launchCmd);
 
-            if (envVarsSetupCmd != "") {
-                this.outputTerminal.sendText(envVarsSetupCmd);
+            if (envVarsSetupCmd) {
+                this.terminal.sendCommand(envVarsSetupCmd);
             }
 
-            this.outputTerminal.sendText(`bash -c "${launchCmd}"`);
-            this.outputTerminal.show(true);
+            // If the launch has requested an external terminal, spawn one. If so,
+            // we will not clear the old terminal. We only clear the integrated
+            // terminal if we will be reusing it
+            if (args.externalConsole !== undefined && args.externalConsole) {
+                this.terminal = new ExternalTerminal(`bash -c "${launchCmd}"`);
+            } else {
+                this.terminal = new IntegratedTerminal(`bash -c "${launchCmd}"`, terminal);
+            }
+
             this.inputHandle =  fs.createWriteStream(this.inputFile, {flags: 'a'});
             this.outputHandle = ts.createReadStream(this.outputFile);
 
