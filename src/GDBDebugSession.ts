@@ -22,8 +22,6 @@ import * as vscode from "vscode";
 import { OutputChannel, Terminal } from 'vscode';
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    /** Easy identification as a launch request */
-    type: 'LaunchRequest';
 	/** Absolute program to path to debug */
 	program: string;
 	/** Should inferior immediately stop? */
@@ -49,8 +47,6 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 }
 
 export interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
-    /** Easy identification as an attach request */
-    type: 'AttachRequest';
 	/** PID of process to debug. */
     program: number;
     /** Debugger path */

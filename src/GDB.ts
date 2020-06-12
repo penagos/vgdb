@@ -155,6 +155,10 @@ export class GDB extends EventEmitter {
         this.debug = debug;
     }
 
+    private isLaunch(arg: any): arg is LaunchRequestArguments {
+        return arg && typeof(arg.program) == 'string';
+    }
+
     public spawn(args: (LaunchRequestArguments | AttachRequestArguments)): Promise<any> {
         return new Promise((resolve, reject) => {
         let envVarsSetupCmd;
@@ -183,7 +187,7 @@ export class GDB extends EventEmitter {
 
             // If this is an attach request, the program arg will be a numeric
             // We need to thread this differently to GDB
-            if (args.type == "LaunchRequest") {
+            if (this.isLaunch(args)) {
                 if (args.args) {
                     this.args.push('--args');
                     this.args.push(args.program);
@@ -220,7 +224,7 @@ export class GDB extends EventEmitter {
             this.inputHandle.on('open', (data) => {
                 let cmdsPending: Promise<any>[] = [];
 
-                if (args.type == 'LaunchRequest' && args.startupCmds) {
+                if (this.isLaunch(args) && args.startupCmds) {
                     args.startupCmds.forEach(cmd => {
                         cmdsPending.push(this.sendCommand(cmd));
                     });
