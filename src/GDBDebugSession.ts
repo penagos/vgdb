@@ -21,7 +21,9 @@ import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel, Terminal } from 'vscode';
 
-interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
+export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
+    /** Easy identification as a launch request */
+    type: 'LaunchRequest';
 	/** Absolute program to path to debug */
 	program: string;
 	/** Should inferior immediately stop? */
@@ -46,7 +48,9 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     debug?: boolean;
 }
 
-interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
+export interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
+    /** Easy identification as an attach request */
+    type: 'AttachRequest';
 	/** PID of process to debug. */
     program: number;
     /** Debugger path */
@@ -152,7 +156,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: AttachRequestArguments) {
             // TODO: support startup commands like LaunchRequest
             this.GDB.setDebug(args.debug || false);
-            this.GDB.spawn(args.debugger, {}, [], args.program, undefined).then(() => {
+            this.GDB.spawn(args).then(() => {
                 this.sendResponse(response);
             });
     }
@@ -161,11 +165,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
             this.GDB.setDebug(args.debug || false);
-            this.GDB.spawn(args.debugger,
-                           args.envVars || {},
-                           args.startupCmds || [],
-                           args.program,
-                           args.args).then(() => {
+            this.GDB.spawn(args).then(() => {
                 // If deferred symbols are to be used, set that here
                 if (args.sharedLibraries !== undefined) {
                     // Since commands are sent in a blocking manner we do not need

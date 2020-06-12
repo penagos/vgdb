@@ -10,6 +10,7 @@ import * as vscode from "vscode";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'tail-stream';
+import { AttachRequestArguments, LaunchRequestArguments } from "./GDBDebugSession";
 
 // GDB stop reasons
 export const EVENT_OUTPUT = "output";
@@ -97,10 +98,6 @@ export class GDB extends EventEmitter {
         // temporarily redirect the output to a known file
         this.outputTerminal = terminal;
 
-        // If there was a prior launch that used the same output terminal we
-        // need to clear prior output
-        this.outputTerminal.sendText(`clear`);
-
         // This is a bit of a hack -- since there is no elegant way of making a
         // FIFO pipe in nodeJS we need to resort to a shell to do so. We need to
         // do this in the constructor to give sufficient time for the FIFO pipe
@@ -136,9 +133,7 @@ export class GDB extends EventEmitter {
         return `/tmp/vGDB_${desc}${this.genRandomID(8)}`;
     }
 
-    private createLaunchCommand(debuggerPath: string,
-                                program: any,
-                                args) : string {
+    private createLaunchCommand() : string {
         // This idea is borrowed from the Microsoft cpptools VSCode extension.
         // It really is the only conceivable way to support running in the
         // integrated terminal. We spin on the GDB process to prevent the shell
@@ -160,12 +155,15 @@ export class GDB extends EventEmitter {
         this.debug = debug;
     }
 
-    public spawn(debuggerPath: string,
-                 envVars: Object,
-                 cmds: (string[] | undefined),
-                 program: any,
-                 args: (string[] | undefined)): Promise<any> {
+    public spawn(args: (LaunchRequestArguments | AttachRequestArguments)): Promise<any> {
         return new Promise((resolve, reject) => {
+        let envVarsSetupCmd;
+        // If the launch has requested an external terminal, spawn one. If so,
+        // we will not clear the old terminal. We only clear the integrated
+        // terminal if we will be reusing it
+
+        this.outputTerminal.sendText(`clear`);
+
             // Spawn the GDB process in the integrated terminal. In order to
             // correctly separate inferior output from GDB output and pipe
             // them to the correct handlers we use some hacks:
@@ -179,29 +177,30 @@ export class GDB extends EventEmitter {
             // (3) We redirect all stdin to GDB through another FIFO pipe which
             //     we will keep open throughout the entirety of the debug
             //     session (to prevent premature debugger exit).
-            if (debuggerPath !== undefined) {
-                this.path = debuggerPath;
+            if (args.debugger) {
+                this.path = args.debugger;
             }
 
             // If this is an attach request, the program arg will be a numeric
             // We need to thread this differently to GDB
-            if (isNaN(program)) {
-                if (args) {
+            if (args.type == "LaunchRequest") {
+                if (args.args) {
                     this.args.push('--args');
-                    this.args.push(program);
-                    this.args = this.args.concat(args);
+                    this.args.push(args.program);
+                    this.args = this.args.concat(args.args);
                 } else {
-                    this.args.push(program);
+                    this.args.push(args.program);
+                }
+
+                if (args.envVars) {
+                    envVarsSetupCmd = this.createEnvVarsCmd(args.envVars);
                 }
             } else {
-                this.PID = program;
+                this.PID = args.program;
             }
 
-            let launchCmd = this.createLaunchCommand(debuggerPath, program, args);
+            let launchCmd = this.createLaunchCommand();
             this.log(launchCmd);
-
-            // Send any env vars
-            const envVarsSetupCmd = this.createEnvVarsCmd(envVars);
 
             if (envVarsSetupCmd != "") {
                 this.outputTerminal.sendText(envVarsSetupCmd);
@@ -221,8 +220,8 @@ export class GDB extends EventEmitter {
             this.inputHandle.on('open', (data) => {
                 let cmdsPending: Promise<any>[] = [];
 
-                if (cmds) {
-                    cmds.forEach(cmd => {
+                if (args.type == 'LaunchRequest' && args.startupCmds) {
+                    args.startupCmds.forEach(cmd => {
                         cmdsPending.push(this.sendCommand(cmd));
                     });
                 }
