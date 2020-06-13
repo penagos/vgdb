@@ -28,23 +28,23 @@ These are all of the settings currently supported:
 
 ### Launch Requests
 
-| Configuration Option  | Description                                                              |
-| --------------------- |--------------------------------------------------------------------------|
-| `args`                | Array of arguments to pass to debuggee                                   |
-| `cwd`                 | The directory in which to start GDB                                      |
-| `debug`               | Enable debug logging of the adapter (under vGDB output tab)              |
-| `debugger`            | (Optional) path to GDB executable                                        |
-| `env`                 | Key value pairs of environment variables to set in debugging shell       |
-| `externalConsole`     | If set to false, debuggee will launch in Visual Studio Code terminal     |
-| `program`             | Path to program to debug                                                 |
-| `sharedLibraries`     | Array of shared library names to load, disregards all other libraries    |
-| `startupCmds`         | Array of GDB commands to run at start                                    |
+| Configuration Option  | Required | Description                                                              |
+| --------------------- |----------|--------------------------------------------------------------------------|
+| `args`                | No       | Array of arguments to pass to debuggee                                   |
+| `cwd`                 | No       | The directory in which to start GDB                                      |
+| `debug`               | No       | Enable debug logging of the adapter (under vGDB output tab)              |
+| `debugger`            | No       | Path to GDB executable                                                   |
+| `env`                 | No       | Key value pairs of environment variables to set in debugging shell       |
+| `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal     |
+| `program`             | Yes      | Path to program to debug                                                 |
+| `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries    |
+| `startupCmds`         | No       | Array of GDB commands to run at start                                    |
 
 
 ### Attach Requests
 
-| Configuration Option  | Description                                                              |
-| --------------------- |--------------------------------------------------------------------------|
-| `debug`               | Enable debug logging of the adapter (under vGDB output tab)              |
-| `debugger`            | (Optional) path to GDB executable                                        |
-| `program`             | Path to program to debug                                                 |
+| Configuration Option  | Required | Description                                                              |
+| --------------------- |----------|--------------------------------------------------------------------------|
+| `debug`               | No       | Enable debug logging of the adapter (under vGDB output tab)              |
+| `debugger`            | No       | Path to GDB executable                                                   |
+| `program`             | Yes      | Path to program to debug                                                 |
