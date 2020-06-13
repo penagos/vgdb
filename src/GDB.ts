@@ -32,6 +32,7 @@ export const SCOPE_LOCAL = 1000;
 // Used as an abstraction for integrated/non-integrated terminals
 abstract class TerminalWindow {
     public abstract sendCommand(cmd: string);
+    public abstract destroy();
     protected terminal: any;
 };
 
@@ -47,6 +48,10 @@ class IntegratedTerminal extends TerminalWindow {
     public sendCommand(cmd: string) {
         this.terminal.sendText(cmd);
     }
+
+    public destroy() {
+        // Nothing needs to be done for integrated terminal
+    }
 };
 
 // Todo implement terminateRequest and close external terminal
@@ -61,6 +66,11 @@ class ExternalTerminal extends TerminalWindow {
 
     public sendCommand(cmd: string) {
         this.terminal.stdin.write(cmd + '\n');
+    }
+
+    public destroy() {
+        // Close terminal if not done already
+        this.terminal.kill();
     }
 };
 
@@ -671,7 +681,13 @@ export class GDB extends EventEmitter {
                 await this.sendCommand(`detach`);
             }
 
+            this.dispose();
             return this.sendCommand(`-gdb-exit`);
         });
+    }
+
+    public dispose() {
+        // Mainly for killing external terminal
+        this.terminal.destroy();
     }
 }
