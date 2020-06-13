@@ -1,6 +1,13 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.1.25 (June/12/2020)
+
+### Enhancements
+- Support for external terminal
+- Support for deferred shared library loading
+- Faster disconnect request
+
 ## 0.1.24 (June/9/2020)
 
 ### Enhancements
