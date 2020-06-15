@@ -40,6 +40,10 @@ These are all of the settings currently supported:
 | `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries    |
 | `startupCmds`         | No       | Array of GDB commands to run at start                                    |
 
+#### Additional Notes
+- When using the `sharedLibraries` configuration setting, your `.gdbinit` setting for `auto-solib-add` will be overwritten to be `false`. The debug adapter will listen for shared library load events and only proceed to `sharedlibrary <name>` if that file is in your whitelist.
+- When setting the `externalConsole` setting to `true`, hitting `CTRL+C` in the integrated terminal will not abort the debug target.
+- The `startupCmds` commands will run after those in your `.gdbinit` file have run.
 
 ### Attach Requests
 
