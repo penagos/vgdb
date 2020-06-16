@@ -32,7 +32,7 @@ These are all of the settings currently supported:
 | --------------------- |----------|--------------------------------------------------------------------------|
 | `args`                | No       | Array of arguments to pass to debuggee                                   |
 | `cwd`                 | No       | The directory in which to start GDB                                      |
-| `debug`               | No       | Enable debug logging of the adapter (under vGDB output tab)              |
+| `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `env`                 | No       | Key value pairs of environment variables to set in debugging shell       |
 | `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal     |
@@ -51,7 +51,7 @@ These are all of the settings currently supported:
 
 | Configuration Option  | Required | Description                                                              |
 | --------------------- |----------|--------------------------------------------------------------------------|
-| `debug`               | No       | Enable debug logging of the adapter (under vGDB output tab)              |
+| `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
