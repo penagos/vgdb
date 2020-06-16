@@ -128,6 +128,9 @@ export class GDB extends EventEmitter {
     // Should we only load certain libraries?
     private sharedLibraries: string[] = [];
 
+    // Should we use absolute file paths when setting breakpoints?
+    private useAbsoluteFilePaths: boolean = true;
+
     public constructor(outputChannel: OutputChannel) {
         super();
 
@@ -218,6 +221,12 @@ export class GDB extends EventEmitter {
             //     session (to prevent premature debugger exit).
             if (args.debugger) {
                 this.path = args.debugger;
+            }
+
+            // (Advanced) if user has specified filenames only be used for
+            // setting breakpoints, set the appropriate flag
+            if (args.useAbsoluteFilePaths) {
+                this.useAbsoluteFilePaths = args.useAbsoluteFilePaths;
             }
 
             // If this is an attach request, the program arg will be a numeric
@@ -487,6 +496,11 @@ export class GDB extends EventEmitter {
 
             if (bps) {
                 bps.forEach((bp) => {
+                    // If using filenames only, strip out path
+                    if (!this.useAbsoluteFilePaths) {
+                        sourceFile = path.basename(sourceFile);
+                    }
+
                     let promise = this.sendCommand(`-break-insert -f ${sourceFile}:${bp.line}`);
                     bpsPending.push(promise);
                     promise.then((record: ResultRecord) => {
@@ -684,6 +698,10 @@ export class GDB extends EventEmitter {
             this.dispose();
             return this.sendCommand(`-gdb-exit`);
         });
+    }
+
+    public updateVar(variable: string, val: string): Promise<any> {
+        return this.sendCommand(`set var ${variable} = ${val}`);
     }
 
     public dispose() {

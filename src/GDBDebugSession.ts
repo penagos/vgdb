@@ -46,6 +46,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     debug?: boolean;
     /** Should inferior terminal be in VSCode? */
     externalConsole?: boolean;
+    /** Should absolute filepaths be used? */
+    useAbsoluteFilePaths?: boolean;
 }
 
 export interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
@@ -57,6 +59,8 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     debug?: boolean;
     /** Should inferior terminal be in VSCode? */
     externalConsole?: boolean;
+    /** Should absolute filepaths be used? */
+    useAbsoluteFilePaths?: boolean;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
@@ -353,4 +357,17 @@ export class GDBDebugSession extends LoggingDebugSession {
             // We do not need to wait until GDB quits
             this.sendResponse(response);
     }
+
+    protected setVariableRequest(response: DebugProtocol.SetVariableResponse,
+        args: DebugProtocol.SetVariableArguments): void {
+            this.GDB.updateVar(args.name, args.value).then(() => {
+                // TODO: fetch actual value from GDB
+                response.body = 
+                {
+                    value: args.value
+                };
+
+                this.sendResponse(response);
+            });
+        }
 }

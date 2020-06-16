@@ -39,6 +39,8 @@ These are all of the settings currently supported:
 | `program`             | Yes      | Path to program to debug                                                 |
 | `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries    |
 | `startupCmds`         | No       | Array of GDB commands to run at start                                    |
+| `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
+
 
 #### Additional Notes
 - When using the `sharedLibraries` configuration setting, your `.gdbinit` setting for `auto-solib-add` will be overwritten to be `false`. The debug adapter will listen for shared library load events and only proceed to `sharedlibrary <name>` if that file is in your whitelist.
@@ -52,3 +54,4 @@ These are all of the settings currently supported:
 | `debug`               | No       | Enable debug logging of the adapter (under vGDB output tab)              |
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
+| `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |

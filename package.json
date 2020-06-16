@@ -133,6 +133,11 @@
 								"type": "boolean",
 								"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
 								"default": false
+							},
+							"useAbsoluteFilePaths": {
+								"type": "boolean",
+								"description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
+								"default": true
 							}
 						}
 					},
@@ -154,6 +159,11 @@
 							"type": "boolean",
 							"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
 							"default": false
+						},
+						"useAbsoluteFilePaths": {
+							"type": "boolean",
+							"description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
+							"default": true
 						}
 					}
 				},
