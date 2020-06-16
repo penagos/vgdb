@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'tail-stream';
 import { spawn } from "child_process";
-import { AttachRequestArguments, LaunchRequestArguments } from "./GDBDebugSession";
+import { AttachRequestArguments, LaunchRequestArguments, DebugLoggingLevel } from "./GDBDebugSession";
 
 // GDB stop reasons
 export const EVENT_OUTPUT = "output";
@@ -104,7 +104,7 @@ export class GDB extends EventEmitter {
 
     // Control whether or not to dump extension diagnostic information to a
     // dedicated output channel (useful for development)
-    private debug: boolean = false;
+    private debug: DebugLoggingLevel = DebugLoggingLevel.OFF;
 
     // Filepaths to input and output pipes used for IPC with GDB process. These
     // will be randomly generated on each debug session
@@ -157,7 +157,7 @@ export class GDB extends EventEmitter {
     }
 
     private log(text: string) {
-        if (this.debug) {
+        if (this.debug != DebugLoggingLevel.OFF) {
             this.outputChannel.appendLine(text);
         }
     }
@@ -194,7 +194,7 @@ export class GDB extends EventEmitter {
         return `trap '' 2 ; ${this.path} ${this.args.join(' ')} < ${this.inputFile} > ${this.outputFile} & clear ; pid=$!; set +m ; wait $pid ; trap 2 ; echo ;`;
     }
 
-    public setDebug(debug: boolean) {
+    public setDebug(debug: DebugLoggingLevel) {
         this.debug = debug;
     }
 
@@ -362,7 +362,7 @@ export class GDB extends EventEmitter {
                         this.handleParsedResult(record);
  
                         // Minimize the amount of logging
-                        if (record.constructor == StreamRecord || this.debug) {
+                        if (record.constructor == StreamRecord || this.debug == DebugLoggingLevel.VERBOSE) {
                             this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true));
                         }
                     }

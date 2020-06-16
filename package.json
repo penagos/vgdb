@@ -89,11 +89,6 @@
 								"description": "Automatically stop after launch.",
 								"default": true
 							},
-							"trace": {
-								"type": "boolean",
-								"description": "Enable logging of the Debug Adapter Protocol.",
-								"default": true
-							},
 							"args": {
 								"type": "array",
 								"description": "Arguments to pass to inferior",
@@ -130,9 +125,15 @@
 								"default": []
 							},
 							"debug": {
-								"type": "boolean",
-								"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
-								"default": false
+								"type": "string",
+								"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
+								"enum": ["off", "basic", "verbose"],
+								"enumDescriptions": [
+									"Disable all debug logging",
+									"Enable command request and response logging in vGDB Output Channel",
+									"Enable all GDB MI output in Debug Console"
+								],
+								"default": "off"
 							},
 							"useAbsoluteFilePaths": {
 								"type": "boolean",
@@ -156,9 +157,15 @@
 							"default": "gdb"
 						},
 						"debug": {
-							"type": "boolean",
-							"description": "If enabled all GDB events and output will also be output to the debug console. Useful if you need to see more verbose GDB output such as shared library load events",
-							"default": false
+							"type": "string",
+							"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
+							"enum": ["off", "basic", "verbose"],
+							"enumDescriptions": [
+								"Disable all debug logging",
+								"Enable command request and response logging in vGDB Output Channel",
+								"Enable all GDB MI output in Debug Console"
+							],
+							"default": "off"
 						},
 						"useAbsoluteFilePaths": {
 							"type": "boolean",

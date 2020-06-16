@@ -21,13 +21,17 @@ import { Record } from "./parser/Record";
 import * as vscode from "vscode";
 import { OutputChannel, Terminal } from 'vscode';
 
+export enum DebugLoggingLevel {
+    OFF = "off",
+    BASIC = "basic",
+    VERBOSE = "verbose"
+};
+
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** Absolute program to path to debug */
 	program: string;
 	/** Should inferior immediately stop? */
 	stopOnEntry?: boolean;
-	/** enable logging the Debug Adapter Protocol */
-    trace?: boolean;
     /** Arguments to pass to inferior */
     args?: string[];
     /** Launch directory */
@@ -42,8 +46,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     envVars?: {};
     /** Shared libraries for deferred symbol loading */
     sharedLibraries?: string[];
-    /** Enable verbose debug logging */
-    debug?: boolean;
+    /** How verbose should debug logging be? */
+    debug?: DebugLoggingLevel;
     /** Should inferior terminal be in VSCode? */
     externalConsole?: boolean;
     /** Should absolute filepaths be used? */
@@ -55,8 +59,8 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     program: number;
     /** Debugger path */
     debugger: string;
-    /** Enable verbose debug logging */
-    debug?: boolean;
+    /** How verbose should debug logging be? */
+    debug?: DebugLoggingLevel;
     /** Should inferior terminal be in VSCode? */
     externalConsole?: boolean;
     /** Should absolute filepaths be used? */
@@ -159,7 +163,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async attachRequest(response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments) {
             // TODO: support startup commands like LaunchRequest
-            this.GDB.setDebug(args.debug || false);
+            this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
             this.GDB.spawn(args, this.terminal).then(() => {
                 this.sendResponse(response);
             });
@@ -168,7 +172,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse,
         args: LaunchRequestArguments) {
             // Only send initialized response once GDB is fully spawned
-            this.GDB.setDebug(args.debug || false);
+            this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
             this.GDB.spawn(args, this.terminal).then(() => {
                 // If deferred symbols are to be used, set that here
                 if (args.sharedLibraries !== undefined) {
