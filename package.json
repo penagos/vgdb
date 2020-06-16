@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.25",
+	"version": "0.1.26",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {

@@ -1,6 +1,15 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.1.26 (June/15/2020)
+
+### Enhancements
+- Added new config option `useAbsoluteFilePaths` for toggling how breakpoints are set
+- Change debug logging level to be more finegrained: `off`, `basic` or `verbose`
+
+### Fixed
+- Variables are now updated when modified from `Variables` pane in Visual Studio Code
+
 ## 0.1.25 (June/12/2020)
 
 ### Enhancements
