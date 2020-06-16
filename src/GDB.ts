@@ -225,7 +225,7 @@ export class GDB extends EventEmitter {
 
             // (Advanced) if user has specified filenames only be used for
             // setting breakpoints, set the appropriate flag
-            if (args.useAbsoluteFilePaths) {
+            if (args.useAbsoluteFilePaths !== undefined) {
                 this.useAbsoluteFilePaths = args.useAbsoluteFilePaths;
             }
 
