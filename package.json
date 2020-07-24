@@ -45,14 +45,14 @@
 		"tail-stream": "0.3.4"
 	},
 	"devDependencies": {
-		"@types/node": "10.12.12",
 		"@types/mocha": "5.2.7",
-		"typescript": "3.5.3",
+		"@types/node": "10.12.12",
 		"mocha": "6.2.0",
-		"vscode": "1.1.36",
-		"vscode-debugadapter-testsupport": "1.35.0",
 		"tslint": "5.18.0",
-		"vsce": "1.66.0"
+		"typescript": "3.5.3",
+		"vsce": "^1.66.0",
+		"vscode": "1.1.36",
+		"vscode-debugadapter-testsupport": "1.35.0"
 	},
 	"main": "./out/extension",
 	"activationEvents": [

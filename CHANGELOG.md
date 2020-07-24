@@ -1,6 +1,11 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.1.27 (July/23/2020)
+
+### Enhancements
+- Expose new configuration setting `vgdb.showErrorPopup` to toggle displaying error message popup windows on invalid GDB commands in response to #2. Default value is `false`.
+
 ## 0.1.26 (June/15/2020)
 
 ### Enhancements
