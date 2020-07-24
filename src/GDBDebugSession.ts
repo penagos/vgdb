@@ -94,7 +94,12 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected error(text: string) : void {
         console.error(text);
-        vscode.window.showErrorMessage(text);
+
+        // We do not cache the value in the adapter's constructor so that any
+        // changes can immediately take effect
+        if (vscode.workspace.getConfiguration('vgdb').get("showErrorPopup")) {
+            vscode.window.showErrorMessage(text);
+        }
     }
 
     protected async initializeRequest(
@@ -143,7 +148,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             });
 
             this.GDB.on(EVENT_ERROR, (msg: string) => {
-                vscode.window.showErrorMessage(msg);
+                // We do not cache the value in the adapter's constructor so
+                // that any changes can immediately take effect
+                if (vscode.workspace.getConfiguration('vgdb').get("showErrorPopup")) {
+                    vscode.window.showErrorMessage(msg);
+                }
             });
 
             this.GDB.on(EVENT_THREAD_NEW, (threadID: number) => {

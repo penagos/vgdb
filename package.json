@@ -1,7 +1,7 @@
 {
 	"name": "vgdb",
 	"displayName": "vGDB",
-	"version": "0.1.26",
+	"version": "0.1.27",
 	"publisher": "penagos",
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
@@ -59,6 +59,16 @@
 		"onDebug"
 	],
 	"contributes": {
+		"configuration": {
+			"title": "vGDB",
+			"properties": {
+				"vgdb.showErrorPopup": {
+					"type": "boolean",
+					"default": false,
+					"description": "Show popup error window on invalid GDB command"
+				}
+			}
+		},
 		"breakpoints": [
 			{
 				"language": "cpp"
@@ -127,7 +137,11 @@
 							"debug": {
 								"type": "string",
 								"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
-								"enum": ["off", "basic", "verbose"],
+								"enum": [
+									"off",
+									"basic",
+									"verbose"
+								],
 								"enumDescriptions": [
 									"Disable all debug logging",
 									"Enable command request and response logging in vGDB Output Channel",
@@ -159,7 +173,11 @@
 						"debug": {
 							"type": "string",
 							"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
-							"enum": ["off", "basic", "verbose"],
+							"enum": [
+								"off",
+								"basic",
+								"verbose"
+							],
 							"enumDescriptions": [
 								"Disable all debug logging",
 								"Enable command request and response logging in vGDB Output Channel",
