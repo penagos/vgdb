@@ -3,6 +3,7 @@
 	"displayName": "vGDB",
 	"version": "0.1.27",
 	"publisher": "penagos",
+	"publishConfig": { "registry": "https://npm.pkg.github.com/" },
 	"description": "C/C++ Debugging Support for Visual Studio Code",
 	"author": {
 		"name": "Luis Penagos",
@@ -22,7 +23,6 @@
 	"categories": [
 		"Debuggers"
 	],
-	"private": true,
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/penagos/vgdb.git"
