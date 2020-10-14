@@ -1,236 +1,245 @@
 {
-	"name": "vgdb",
-	"displayName": "vGDB",
-	"version": "0.1.27",
-	"publisher": "penagos",
-	"publishConfig": { "registry": "https://npm.pkg.github.com/" },
-	"description": "C/C++ Debugging Support for Visual Studio Code",
-	"author": {
-		"name": "Luis Penagos",
-		"email": "luis@penagos.co"
-	},
-	"license": "MIT",
-	"keywords": [
-		"GDB",
-		"C++",
-		"C"
-	],
-	"icon": "resources/vgdb.png",
-	"engines": {
-		"vscode": "^1.33.0",
-		"node": "^10.15.1"
-	},
-	"categories": [
-		"Debuggers"
-	],
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/penagos/vgdb.git"
-	},
-	"bugs": {
-		"url": "https://github.com/penagos/vgdb/issues"
-	},
-	"scripts": {
-		"prepublish": "tsc -p ./src",
-		"compile": "tsc -p ./src",
-		"tslint": "tslint ./src/**/*.ts",
-		"watch": "tsc -w -p ./src",
-		"test": "mocha -u tdd ./out/tests/",
-		"postinstall": "node ./node_modules/vscode/bin/install",
-		"package": "vsce package",
-		"publish": "vsce publish"
-	},
-	"dependencies": {
-		"vscode-debugadapter": "1.35.0",
-		"tail-stream": "0.3.4"
-	},
-	"devDependencies": {
-		"@types/mocha": "5.2.7",
-		"@types/node": "10.12.12",
-		"mocha": "6.2.0",
-		"tslint": "5.18.0",
-		"typescript": "3.5.3",
-		"vsce": "^1.66.0",
-		"vscode": "1.1.36",
-		"vscode-debugadapter-testsupport": "1.35.0"
-	},
-	"main": "./out/extension",
-	"activationEvents": [
-		"onDebug"
-	],
-	"contributes": {
-		"configuration": {
-			"title": "vGDB",
-			"properties": {
-				"vgdb.showErrorPopup": {
-					"type": "boolean",
-					"default": false,
-					"description": "Show popup error window on invalid GDB command"
-				}
-			}
-		},
-		"breakpoints": [
-			{
-				"language": "cpp"
-			},
-			{
-				"language": "c"
-			}
-		],
-		"debuggers": [
-			{
-				"type": "vgdb",
-				"label": "vGDB: C/C++ Debug",
-				"program": "./out/debugAdapter.js",
-				"runtime": "node",
-				"configurationAttributes": {
-					"launch": {
-						"required": [
-							"program"
-						],
-						"properties": {
-							"program": {
-								"type": "string",
-								"description": "Absolute path of program to debug",
-								"default": "${workspaceFolder}/${command:AskForProgramName}"
-							},
-							"stopOnEntry": {
-								"type": "boolean",
-								"description": "Automatically stop after launch.",
-								"default": true
-							},
-							"args": {
-								"type": "array",
-								"description": "Arguments to pass to inferior",
-								"default": []
-							},
-							"cwd": {
-								"type": "string",
-								"description": "Working directory of the target",
-								"default": "${workspaceFolder}"
-							},
-							"env": {
-								"type": "object",
-								"description": "Environment variables to set in debugger shell",
-								"default": {}
-							},
-							"externalConsole": {
-								"type": "boolean",
-								"description": "If true, debug target will spawn a new terminal window",
-								"default": false
-							},
-							"debugger": {
-								"type": "string",
-								"description": "Path to GDB executable",
-								"default": "gdb"
-							},
-							"startupCmds": {
-								"type": "array",
-								"description": "Startup commands to run in GDB",
-								"default": []
-							},
-							"sharedLibraries": {
-								"type": "array",
-								"description": "Disable auto shared library loads in GDB and only load these. If this setting is specified, it will override any auto-solib-add GDB setting",
-								"default": []
-							},
-							"debug": {
-								"type": "string",
-								"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
-								"enum": [
-									"off",
-									"basic",
-									"verbose"
-								],
-								"enumDescriptions": [
-									"Disable all debug logging",
-									"Enable command request and response logging in vGDB Output Channel",
-									"Enable all GDB MI output in Debug Console"
-								],
-								"default": "off"
-							},
-							"useAbsoluteFilePaths": {
-								"type": "boolean",
-								"description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
-								"default": true
-							}
-						}
-					},
-					"attach": {
-						"required": [
-							"program"
-						],
-						"program": {
-							"type": "number",
-							"description": "PID of program to debug",
-							"default": "\\${command:AskForProgramPID}"
-						},
-						"debugger": {
-							"type": "string",
-							"description": "Path to GDB executable",
-							"default": "gdb"
-						},
-						"debug": {
-							"type": "string",
-							"description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
-							"enum": [
-								"off",
-								"basic",
-								"verbose"
-							],
-							"enumDescriptions": [
-								"Disable all debug logging",
-								"Enable command request and response logging in vGDB Output Channel",
-								"Enable all GDB MI output in Debug Console"
-							],
-							"default": "off"
-						},
-						"useAbsoluteFilePaths": {
-							"type": "boolean",
-							"description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
-							"default": true
-						}
-					}
-				},
-				"initialConfigurations": [
-					{
-						"type": "vgdb",
-						"request": "launch",
-						"name": "C/C++ Debug",
-						"program": "${workspaceFolder}/a.out",
-						"args": [],
-						"cwd": "${workspaceFolder}"
-					}
-				],
-				"configurationSnippets": [
-					{
-						"label": "vGDB C/C++ Debug: Launch",
-						"description": "Start GDB for debugging a C/C++ program",
-						"body": {
-							"type": "vgdb",
-							"request": "launch",
-							"name": "C/C++ Debug Launch",
-							"program": "${workspaceFolder}/a.out",
-							"args": [],
-							"cwd": "${workspaceFolder}"
-						}
-					},
-					{
-						"label": "vGDB C/C++ Debug: Attach",
-						"description": "Attach GDB to running C/C++ program",
-						"body": {
-							"type": "vgdb",
-							"request": "attach",
-							"name": "C/C++ Debug Attach",
-							"program": "^\"\\${command:AskForProgramPID}\""
-						}
-					}
-				],
-				"variables": {
-					"AskForProgramName": "extension.vgdb.getProgramName",
-					"AskForProgramPID": "extension.vgdb.getProgramPID"
-				}
-			}
-		]
-	}
+  "name": "vgdb",
+  "displayName": "vGDB",
+  "version": "0.1.27",
+  "publisher": "penagos",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "description": "C/C++ Debugging Support for Visual Studio Code",
+  "author": {
+    "name": "Luis Penagos",
+    "email": "luis@penagos.co"
+  },
+  "license": "MIT",
+  "keywords": [
+    "GDB",
+    "C++",
+    "C"
+  ],
+  "icon": "resources/vgdb.png",
+  "engines": {
+    "vscode": "^1.33.0",
+    "node": "^10.15.1"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/penagos/vgdb.git"
+  },
+  "bugs": {
+    "url": "https://github.com/penagos/vgdb/issues"
+  },
+  "scripts": {
+    "prepublish": "tsc -p ./src",
+    "compile": "tsc -p ./src",
+    "tslint": "tslint ./src/**/*.ts",
+    "watch": "tsc -w -p ./src",
+    "test": "mocha -u tdd ./out/tests/",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
+  },
+  "dependencies": {
+    "vscode-debugadapter": "1.35.0",
+    "tail-stream": "0.3.4"
+  },
+  "devDependencies": {
+    "@types/mocha": "5.2.7",
+    "@types/node": "^14.11.2",
+    "mocha": "6.2.0",
+    "tslint": "5.18.0",
+    "typescript": "^4.0.3",
+    "vsce": "^1.66.0",
+    "vscode": "1.1.36",
+    "vscode-debugadapter-testsupport": "1.35.0",
+    "gts": "^3.0.1"
+  },
+  "main": "./out/extension",
+  "activationEvents": [
+    "onDebug"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "vGDB",
+      "properties": {
+        "vgdb.showErrorPopup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show popup error window on invalid GDB command"
+        }
+      }
+    },
+    "breakpoints": [
+      {
+        "language": "cpp"
+      },
+      {
+        "language": "c"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "vgdb",
+        "label": "vGDB: C/C++ Debug",
+        "program": "./out/debugAdapter.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path of program to debug",
+                "default": "${workspaceFolder}/${command:AskForProgramName}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch.",
+                "default": true
+              },
+              "args": {
+                "type": "array",
+                "description": "Arguments to pass to inferior",
+                "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory of the target",
+                "default": "${workspaceFolder}"
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables to set in debugger shell",
+                "default": {}
+              },
+              "externalConsole": {
+                "type": "boolean",
+                "description": "If true, debug target will spawn a new terminal window",
+                "default": false
+              },
+              "debugger": {
+                "type": "string",
+                "description": "Path to GDB executable",
+                "default": "gdb"
+              },
+              "startupCmds": {
+                "type": "array",
+                "description": "Startup commands to run in GDB",
+                "default": []
+              },
+              "sharedLibraries": {
+                "type": "array",
+                "description": "Disable auto shared library loads in GDB and only load these. If this setting is specified, it will override any auto-solib-add GDB setting",
+                "default": []
+              },
+              "debug": {
+                "type": "string",
+                "description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
+                "enum": [
+                  "off",
+                  "basic",
+                  "verbose"
+                ],
+                "enumDescriptions": [
+                  "Disable all debug logging",
+                  "Enable command request and response logging in vGDB Output Channel",
+                  "Enable all GDB MI output in Debug Console"
+                ],
+                "default": "off"
+              },
+              "useAbsoluteFilePaths": {
+                "type": "boolean",
+                "description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
+                "default": true
+              }
+            }
+          },
+          "attach": {
+            "required": [
+              "program"
+            ],
+            "program": {
+              "type": "number",
+              "description": "PID of program to debug",
+              "default": "\\${command:AskForProgramPID}"
+            },
+            "debugger": {
+              "type": "string",
+              "description": "Path to GDB executable",
+              "default": "gdb"
+            },
+            "debug": {
+              "type": "string",
+              "description": "Toggle the verbosity of debug logging. Useful if you need to see more verbose GDB output such as shared library load events",
+              "enum": [
+                "off",
+                "basic",
+                "verbose"
+              ],
+              "enumDescriptions": [
+                "Disable all debug logging",
+                "Enable command request and response logging in vGDB Output Channel",
+                "Enable all GDB MI output in Debug Console"
+              ],
+              "default": "off"
+            },
+            "useAbsoluteFilePaths": {
+              "type": "boolean",
+              "description": "If enabled, absolute file paths will be used to set breakpoints. Otherwise, only the filename will be used. Useful when your debug symbols are referencing relative paths and not absolute paths.",
+              "default": true
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "vgdb",
+            "request": "launch",
+            "name": "C/C++ Debug",
+            "program": "${workspaceFolder}/a.out",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "vGDB C/C++ Debug: Launch",
+            "description": "Start GDB for debugging a C/C++ program",
+            "body": {
+              "type": "vgdb",
+              "request": "launch",
+              "name": "C/C++ Debug Launch",
+              "program": "${workspaceFolder}/a.out",
+              "args": [],
+              "cwd": "${workspaceFolder}"
+            }
+          },
+          {
+            "label": "vGDB C/C++ Debug: Attach",
+            "description": "Attach GDB to running C/C++ program",
+            "body": {
+              "type": "vgdb",
+              "request": "attach",
+              "name": "C/C++ Debug Attach",
+              "program": "^\"\\${command:AskForProgramPID}\""
+            }
+          }
+        ],
+        "variables": {
+          "AskForProgramName": "extension.vgdb.getProgramName",
+          "AskForProgramPID": "extension.vgdb.getProgramPID"
+        }
+      }
+    ]
+  }
 }

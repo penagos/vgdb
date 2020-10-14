@@ -1,15 +1,15 @@
-import { Record } from "./Record";
+import {Record} from './Record';
 
 export enum AsyncRecordType {
-    EXEC = '*',
-    STATUS = '+',
-    NOTIFY = '='
+  EXEC = '*',
+  STATUS = '+',
+  NOTIFY = '=',
 }
 
 export class AsyncRecord extends Record {
-    protected type: AsyncRecordType;
+  protected type: AsyncRecordType;
 
-    public constructor(token: number) {
-        super(token);   
-    }
-};
+  public constructor(token: number) {
+    super(token);
+  }
+}

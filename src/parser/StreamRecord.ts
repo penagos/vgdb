@@ -1,12 +1,12 @@
-import { Record } from "./Record";
+import {Record} from './Record';
 
 enum StreamRecordType {
-    CONSOLE = '~',
-    TARGET = '@',
-    LOG = '&'
+  CONSOLE = '~',
+  TARGET = '@',
+  LOG = '&',
 }
 
 export class StreamRecord extends Record {
-    protected type: StreamRecordType;
-    protected typeEnum = StreamRecordType;
-};
+  protected type: StreamRecordType;
+  protected typeEnum = StreamRecordType;
+}

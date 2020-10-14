@@ -1,17 +1,17 @@
-import { Record } from "./Record";
+import {Record} from './Record';
 
 export enum ResultRecordType {
-    DONE = "done",
-    RUNNING = "running",
-    CONNECTED = "connected",
-    ERROR = "error",
-    EXIT = "exit"
+  DONE = 'done',
+  RUNNING = 'running',
+  CONNECTED = 'connected',
+  ERROR = 'error',
+  EXIT = 'exit',
 }
 
 export class ResultRecord extends Record {
-    protected type: ResultRecordType;
+  protected type: ResultRecordType;
 
-    public constructor(token: number) {
-        super(token);
-    }
-};
+  public constructor(token: number) {
+    super(token);
+  }
+}

@@ -11,6 +11,16 @@
 			"problemMatcher": [],
 			"label": "npm: compile",
 			"detail": "tsc -p ./src"
+		},
+		{
+			"type": "npm",
+			"script": "lint",
+			"problemMatcher": [
+				"$tsc-watch"
+			],
+			"label": "npm: lint",
+			"detail": "gts lint",
+			"isBackground": true
 		}
 	]
 }

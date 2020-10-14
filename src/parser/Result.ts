@@ -1,3 +1,3 @@
 export interface Result {
-    [key: string]: string;
-};
+  [key: string]: string;
+}
