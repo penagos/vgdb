@@ -8,6 +8,7 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 - Launch target in integrated Visual Studio Code terminal or external terminal
 - Conditional breakpoints
 - Debug Console prompt accepts native GDB commands
+- Commands issued in the debug console will automatically pause and resume inferior process
 - Honors deferred symbol loading settings in `.gdbinit`
 - Support for lazy symbol loading as specified in launch configuration
 - Support for setting environment variables

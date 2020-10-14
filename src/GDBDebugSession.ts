@@ -79,6 +79,10 @@ export interface AttachRequestArguments
   useAbsoluteFilePaths?: boolean;
 }
 
+// This is the main class which implements the debug adapter protocol. It will
+// instantiate a separate GDB object which handles spawning and interacting with
+// the GDB process (i.e. parsing MI output). The session handles requests and
+// responses with the IDE
 export class GDBDebugSession extends LoggingDebugSession {
   private GDB: GDB;
   private outputChannel: OutputChannel;
@@ -391,6 +395,11 @@ export class GDBDebugSession extends LoggingDebugSession {
           }
         );
         break;
+
+        case 'watch':
+          // TODO
+          this.error('vGDB does not yet support watching expressions');
+          break;
     }
   }
 
