@@ -56,3 +56,14 @@ These are all of the settings currently supported:
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
+
+### Building from Source
+
+It's recommended that you use one of the published VSIX files on the releases tab, but you can also build the extension from source. To compile/package the extension yourself, you'll need to run the following commands:
+```
+npm install
+npm run compile
+vsce package
+```
+
+If you do not already have the `vsce` NodeJS CLI tool installed, please see https://code.visualstudio.com/api/working-with-extensions/publishing-extension
