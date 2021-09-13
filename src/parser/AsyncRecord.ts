@@ -7,7 +7,7 @@ export enum AsyncRecordType {
 }
 
 export class AsyncRecord extends Record {
-  protected type: AsyncRecordType;
+  protected type?: AsyncRecordType;
 
   public constructor(token: number) {
     super(token);

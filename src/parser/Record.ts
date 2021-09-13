@@ -1,9 +1,9 @@
 export abstract class Record {
-  public response: string;
+  public response: string = '';
   protected token: number;
-  protected abstract type: any;
+  protected abstract type?: any;
   protected results: Map<string, any>;
-  private klass: string;
+  private klass?: string;
 
   public constructor(token: number) {
     this.token = token;
@@ -30,16 +30,16 @@ export abstract class Record {
     return this.klass;
   }
 
-  public addResult(result) {
-    this.results[result[0]] = result[1];
+  public addResult(result: any) {
+    this.results.set(result[0], result[1]);
   }
 
   public getResult(key: string): any {
-    return this.results[key];
+    return this.results.get(key);
   }
 
   // Strip slashes, remove token identifier
-  public prettyPrint() {
+  public prettyPrint(): string {
     //return this.response.substring(2, this.response.length - 1);
     return this.response;
   }

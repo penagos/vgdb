@@ -34,11 +34,11 @@ const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
 
 export class MIParser {
-  private buffer: string;
-  private token: number;
+  private buffer: string = '';
+  private token: number = 0;
 
   public parse(str: string): Record | null {
-    let record;
+    let record: Record | null;
     this.buffer = str;
 
     try {
@@ -57,7 +57,7 @@ export class MIParser {
           // Print to output window
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       // Throw to adapter
       console.error('Parser error: ' + error.message);
       throw error;
@@ -71,7 +71,7 @@ export class MIParser {
     return record;
   }
 
-  private parseToken(match): number {
+  private parseToken(match: any[]): number {
     if (match[TOKEN_POS] != '') {
       this.token = parseInt(match[TOKEN_POS]);
     } else {
@@ -83,7 +83,7 @@ export class MIParser {
 
   private parseOutOfBandRecord() {
     // async-record | stream-record
-    let match;
+    let match: any[] | null;
 
     if ((match = OUT_OF_BAND_RECORD.exec(this.buffer))) {
       this.parseToken(match);
@@ -95,13 +95,13 @@ export class MIParser {
       } else {
         throw new Error('Expected to find AsyncRecord or StreamRecord');
       }
-    }
+    } else return null;
   }
 
   private parseAsyncRecord() {
     // exec-async-output | status-async-output | notify-async-output
     // First character denotes result class
-    let match, result;
+    let match: any, result: any;
     const record = new AsyncRecord(this.token);
     record.setType(this.buffer[0]);
 
@@ -133,7 +133,7 @@ export class MIParser {
 
   private parseResultRecord() {
     // [ token ] "^" result-class ( "," result )* nl
-    let match, record: ResultRecord, result;
+    let match: any, record: any;
 
     if ((match = RESULT_RECORD.exec(this.buffer))) {
       record = new ResultRecord(this.parseToken(match));
@@ -145,8 +145,8 @@ export class MIParser {
       while (this.buffer[0] == ',') {
         // Consume , and read result
         this.buffer = this.buffer.substr(1);
-
-        if ((result = this.parseResult())) {
+        const result = this.parseResult();
+        if (result) {
           record.addResult(result);
         }
       }
@@ -158,7 +158,7 @@ export class MIParser {
   }
 
   private parseResult(): any[] | null {
-    let match;
+    let match: any[] | null;
 
     if ((match = VARIABLE.exec(this.buffer))) {
       // Also consume '='
@@ -174,15 +174,12 @@ export class MIParser {
     switch (this.buffer[0]) {
       case VALUE_CSTRING:
         return this.parseCString();
-        break;
 
       case VALUE_TUPLE:
         return this.parseTuple();
-        break;
 
       case VALUE_LIST:
         return this.parseList();
-        break;
 
       default:
         return null;
@@ -190,7 +187,7 @@ export class MIParser {
   }
 
   private parseCString(): string {
-    let match;
+    let match: string[] | null;
 
     if ((match = CSTRING.exec(this.buffer))) {
       // Consume corresponding '"'
@@ -203,7 +200,7 @@ export class MIParser {
 
   private parseTuple(): Result[] {
     // tuple ==> "{}" | "{" result ( "," result )* "}"
-    let result;
+    let result: any[] | null;
     const tuple = <any>{};
 
     do {
@@ -222,7 +219,7 @@ export class MIParser {
 
   private parseList(): any[] {
     // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
-    let match;
+    let match: any[] | null;
     const list: any = [];
 
     // Consume first [

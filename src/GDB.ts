@@ -9,7 +9,6 @@ import {OutputChannel, Terminal} from 'vscode';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as ts from 'tail-stream';
 import {spawn} from 'child_process';
 import {
   AttachRequestArguments,
@@ -35,8 +34,8 @@ export const SCOPE_LOCAL = 1000;
 
 // Used as an abstraction for integrated/non-integrated terminals
 abstract class TerminalWindow {
-  public abstract sendCommand(cmd: string);
-  public abstract destroy();
+  public abstract sendCommand(cmd: string): void;
+  public abstract destroy(): void;
   protected terminal: any;
 }
 
@@ -63,7 +62,7 @@ class ExternalTerminal extends TerminalWindow {
   constructor(cmd: string) {
     super();
     this.terminal = spawn('x-terminal-emulator', ['-e', cmd]);
-    this.terminal.on('error', err => {
+    this.terminal.on('error', () => {
       console.log('Failed to open external terminal');
     });
   }
@@ -104,7 +103,7 @@ export class GDB extends EventEmitter {
   private threadID: number;
 
   private outputChannel: OutputChannel;
-  private terminal: TerminalWindow;
+  private terminal?: TerminalWindow;
 
   // Control whether or not to dump extension diagnostic information to a
   // dedicated output channel (useful for development)
@@ -112,13 +111,13 @@ export class GDB extends EventEmitter {
 
   // Filepaths to input and output pipes used for IPC with GDB process. These
   // will be randomly generated on each debug session
-  private inputFile: string;
-  private outputFile: string;
+  private inputFile = '';
+  private outputFile = '';
 
   // IO handles to actual pipes. The input handle is an actual FIFO handle
   // while the output handle is a normal fd
-  private inputHandle;
-  private outputHandle;
+  private inputHandle: any;
+  private outputHandle: any;
 
   // Output buffering for stdout pipe
   private ob: string;
@@ -161,7 +160,7 @@ export class GDB extends EventEmitter {
   }
 
   private log(text: string) {
-    if (this.debug != DebugLoggingLevel.OFF) {
+    if (this.debug !== DebugLoggingLevel.OFF) {
       this.outputChannel.appendLine(text);
     }
   }
@@ -261,7 +260,7 @@ export class GDB extends EventEmitter {
       const launchCmd = this.createLaunchCommand();
       this.log(launchCmd);
 
-      if (envVarsSetupCmd) {
+      if (envVarsSetupCmd && this.terminal) {
         this.terminal.sendCommand(envVarsSetupCmd);
       }
 
@@ -278,15 +277,15 @@ export class GDB extends EventEmitter {
       }
 
       this.inputHandle = fs.createWriteStream(this.inputFile, {flags: 'a'});
-      this.outputHandle = ts.createReadStream(this.outputFile);
+      this.outputHandle = fs.createReadStream(this.outputFile);
 
-      this.outputHandle.on('data', data => {
+      this.outputHandle.on('data', (data: any) => {
         this.stdoutHandler(data);
       });
 
       // Only consider GDB as ready once pipe is ready. Once ready send all setup
       // cmds to GDB and then resolve promise
-      this.inputHandle.on('open', data => {
+      this.inputHandle.on('open', () => {
         const cmdsPending: Promise<any>[] = [];
 
         if (this.isLaunch(args) && args.startupCmds) {
@@ -296,7 +295,7 @@ export class GDB extends EventEmitter {
         }
 
         Promise.all(cmdsPending).then(brkpoints => {
-          resolve();
+          resolve(true);
         });
       });
     });
@@ -330,8 +329,8 @@ export class GDB extends EventEmitter {
       .replace(/\\r/g, '')
       .replace(/\\t/g, '\t')
       .replace(/\\v/g, '\v')
-      .replace(/\\\"/g, '"')
-      .replace(/\\\'/g, "'")
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
       .replace(/\\\\/g, '\\');
 
     // If we are sanitizing MI output there are additional things we need
@@ -344,17 +343,19 @@ export class GDB extends EventEmitter {
   }
 
   private createEnvVarsCmd(envVars: object): string {
-    let cmd = '';
+    const cmd = '';
 
-    Object.keys(envVars).forEach(key => {
+    // TODO
+    /*
+    Object.keys(envVars).forEach((key: string) => {
       cmd = `export ${key} = ${envVars[key]}; ${cmd}`;
-    });
+    });*/
 
     return cmd;
   }
 
   // Called on any stdout produced by GDB Process
-  private stdoutHandler(data) {
+  private stdoutHandler(data: any) {
     let record: Record | null;
     const str = data.toString('utf8');
     this.ob += str;
@@ -362,7 +363,7 @@ export class GDB extends EventEmitter {
     // We may be receiving buffered output. In such case defer parsing until
     // full output has been transmitted as denoted by a trailing newline
     const nPos = this.ob.lastIndexOf('\n');
-    if (nPos != -1) {
+    if (nPos !== -1) {
       this.ob = this.ob.substr(0, nPos);
 
       // If multiple lines have buffered, handle each one
@@ -378,8 +379,8 @@ export class GDB extends EventEmitter {
 
             // Minimize the amount of logging
             if (
-              record.constructor == StreamRecord ||
-              this.debug == DebugLoggingLevel.VERBOSE
+              record.constructor === StreamRecord ||
+              this.debug === DebugLoggingLevel.VERBOSE
             ) {
               this.emit(
                 EVENT_OUTPUT,
@@ -387,7 +388,7 @@ export class GDB extends EventEmitter {
               );
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           this.log(error.stack);
           console.log(error.stack);
           this.emit(EVENT_ERROR_FATAL);
@@ -403,7 +404,7 @@ export class GDB extends EventEmitter {
         switch (record.getType()) {
           case AsyncRecordType.EXEC:
             switch (record.getClass()) {
-              case STOPPED:
+              case STOPPED: {
                 this.threadID = parseInt(record.getResult('thread-id'));
                 const reason = record.getResult('reason');
 
@@ -442,15 +443,16 @@ export class GDB extends EventEmitter {
                   }
                 }
                 break;
+              }
 
-              case RUNNING:
+              case RUNNING: {
                 let tid: number, all: boolean;
                 this.threadID = -1;
                 all = false;
 
                 // If threadID is not a number, this means all threads have continued
                 tid = parseInt(record.getResult('thread-id'));
-                if (tid == NaN) {
+                if (isNaN(tid)) {
                   tid = this.threadID;
                   all = true;
                 }
@@ -458,16 +460,17 @@ export class GDB extends EventEmitter {
                 // For now we assume all threads resume execution
                 this.emit(EVENT_RUNNING, this.threadID, all);
                 break;
+              }
             }
             break;
 
           case AsyncRecordType.NOTIFY:
             // Listen for thread events
-            if (record.getClass() == EVENT_THREAD_NEW) {
+            if (record.getClass() === EVENT_THREAD_NEW) {
               this.emit(EVENT_THREAD_NEW, record.getResult('id'));
             } else if (
               this.sharedLibraries.length &&
-              record.getClass() == EVENT_SOLIB_LOADED
+              record.getClass() === EVENT_SOLIB_LOADED
             ) {
               // If deferred symbol loading is enabled, check that
               // the shared library loaded is in the user specified
@@ -487,7 +490,7 @@ export class GDB extends EventEmitter {
 
       case ResultRecord:
         // Fulfill promise on stack
-        if (record.getToken() !== NaN) {
+        if (!isNaN(record.getToken())) {
           const handler = this.handlers[record.getToken()];
 
           if (handler) {
@@ -512,13 +515,16 @@ export class GDB extends EventEmitter {
     return this.sendCommand('-break-delete');
   }
 
-  public setBreakpoints(sourceFile: string, bps): Promise<Breakpoint[]> {
+  public setBreakpoints(
+    sourceFile: string,
+    bps: any[] | null
+  ): Promise<Breakpoint[]> {
     return new Promise((resolve, reject) => {
       const bpsPending: Promise<any>[] = [];
       const bpsVerified: Breakpoint[] = [];
 
       if (bps) {
-        bps.forEach(bp => {
+        bps.forEach((bp: any) => {
           // If using filenames only, strip out path
           if (!this.useAbsoluteFilePaths) {
             sourceFile = path.basename(sourceFile);
@@ -568,7 +574,7 @@ export class GDB extends EventEmitter {
           vscode.commands
             .executeCommand('workbench.action.terminal.clear')
             .then(() => {
-              resolve();
+              resolve(true);
             });
         });
       });
@@ -582,7 +588,7 @@ export class GDB extends EventEmitter {
         this.sendCommand(`attach ${this.PID}`).then(() => {
           // TODO: will likely need to clear terminal as well like in launchRequest
           return this.sendCommand('-exec-continue').then(() => {
-            resolve();
+            resolve(true);
           });
         });
       });
@@ -624,7 +630,7 @@ export class GDB extends EventEmitter {
 
       this.sendCommand(cmd).then((record: ResultRecord) => {
         // If an error has resulted, also send an error event to show it to the user
-        if (record.getClass() == ERROR) {
+        if (record.getClass() === ERROR) {
           this.emit(EVENT_ERROR, record.getResult('msg').replace(/\\/g, ''));
         }
 
@@ -636,7 +642,7 @@ export class GDB extends EventEmitter {
       // TODO: this will not cause the right stackframe to be selected as
       // the debug adapter protocol does not support this
       // See https://github.com/microsoft/debug-adapter-protocol/issues/118
-      if (expr == 'up' || expr == 'down') {
+      if (expr === 'up' || expr === 'down') {
         this.emit(EVENT_RUNNING, this.threadID, true);
         this.emit(EVENT_PAUSED);
       }
@@ -658,7 +664,7 @@ export class GDB extends EventEmitter {
   }
 
   public isStopped(): boolean {
-    return this.threadID != -1;
+    return this.threadID !== -1;
   }
 
   public getStack(threadID: number): Promise<any> {
@@ -666,7 +672,7 @@ export class GDB extends EventEmitter {
       this.sendCommand(`-stack-list-frames --thread ${threadID}`).then(
         (record: ResultRecord) => {
           const stackFinal: StackFrame[] = [];
-          record.getResult('stack').forEach(frame => {
+          record.getResult('stack').forEach((frame: any) => {
             frame = frame[1];
             stackFinal.push(
               new StackFrame(
@@ -729,9 +735,9 @@ export class GDB extends EventEmitter {
   }
 
   public quit(attach: boolean): Promise<any> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       if (attach) {
-        await this.sendCommand('detach');
+        this.sendCommand('detach');
       }
 
       this.dispose();
@@ -744,7 +750,8 @@ export class GDB extends EventEmitter {
   }
 
   public dispose() {
-    // Mainly for killing external terminal
-    this.terminal.destroy();
+    if (this.terminal) {
+      this.terminal.destroy();
+    }
   }
 }

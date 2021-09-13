@@ -1,4 +1,4 @@
-import {DebugProtocol} from 'vscode-debugprotocol';
+import { DebugProtocol } from 'vscode-debugprotocol';
 import {
   InitializedEvent,
   LoggingDebugSession,
@@ -21,15 +21,15 @@ import {
   EVENT_FUNCTION_FINISHED,
   EVENT_OUTPUT,
   EVENT_SIGNAL,
-  SCOPE_LOCAL,
   EVENT_PAUSED,
   EVENT_ERROR,
   EVENT_ERROR_FATAL,
   EVENT_THREAD_NEW,
+  SCOPE_LOCAL
 } from './GDB';
-import {Record} from './parser/Record';
+import { Record } from './parser/Record';
 import * as vscode from 'vscode';
-import {OutputChannel, Terminal} from 'vscode';
+import { OutputChannel, Terminal } from 'vscode';
 
 export enum DebugLoggingLevel {
   OFF = 'off',
@@ -238,7 +238,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetBreakpointsArguments
   ): void {
     this.GDB.clearBreakpoints().then(() => {
-      this.GDB.setBreakpoints(args.source.path || '', args.breakpoints).then(
+      this.GDB.setBreakpoints(args.source.path || '', args.breakpoints || null).then(
         bps => {
           response.body = {
             breakpoints: bps,

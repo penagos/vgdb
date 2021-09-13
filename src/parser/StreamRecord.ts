@@ -7,6 +7,6 @@ enum StreamRecordType {
 }
 
 export class StreamRecord extends Record {
-  protected type: StreamRecordType;
+  protected type?: StreamRecordType;
   protected typeEnum = StreamRecordType;
 }
