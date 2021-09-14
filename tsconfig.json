@@ -1,11 +1,25 @@
 {
-  "extends": "./node_modules/gts/tsconfig-google.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "build"
-  },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
-  ]
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es6",
+		"outDir": "out",
+		"lib": [
+			"es6"
+		],
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true,
+		"noImplicitAny": false,
+		"removeComments": false,
+		"noUnusedLocals": true,
+		"noImplicitThis": true,
+		"inlineSourceMap": false,
+		"preserveConstEnums": true,
+		"strictNullChecks": true,
+		"noUnusedParameters": false,
+		"moduleResolution": "node"
+	},
+	"exclude": [
+		"node_modules"
+	]
 }

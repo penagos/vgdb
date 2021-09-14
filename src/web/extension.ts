@@ -1,11 +1,10 @@
-'use strict';
-
 import * as vscode from 'vscode';
-
-import {activateDbg} from './activateDbg';
+import {activateDbg} from '../activateDbg';
 
 export function activate(context: vscode.ExtensionContext) {
   activateDbg(context);
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // nothing to do
+}
