@@ -324,7 +324,7 @@ export class GDB extends EventEmitter {
   }
 
   public sanitize(text: string, MI: boolean): string {
-    text = text
+    text = (text || '')
       .replace(/&"/g, '')
       .replace(/\\n/g, '')
       .replace(/\\r/g, '')
