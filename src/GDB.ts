@@ -344,13 +344,11 @@ export class GDB extends EventEmitter {
   }
 
   private createEnvVarsCmd(envVars: object): string {
-    const cmd = '';
+    let cmd = '';
 
-    // TODO
-    /*
     Object.keys(envVars).forEach((key: string) => {
       cmd = `export ${key} = ${envVars[key]}; ${cmd}`;
-    });*/
+    });
 
     return cmd;
   }
