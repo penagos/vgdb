@@ -8,6 +8,7 @@ import {Breakpoint, Thread, StackFrame, Source} from 'vscode-debugadapter';
 import {OutputChannel, Terminal} from 'vscode';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as ts from 'tail-stream';
 import * as path from 'path';
 import {spawn} from 'child_process';
 import {
@@ -277,7 +278,7 @@ export class GDB extends EventEmitter {
       }
 
       this.inputHandle = fs.createWriteStream(this.inputFile, {flags: 'a'});
-      this.outputHandle = fs.createReadStream(this.outputFile);
+      this.outputHandle = ts.createReadStream(this.outputFile);
 
       this.outputHandle.on('data', (data: any) => {
         this.stdoutHandler(data);

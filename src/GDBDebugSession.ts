@@ -1,4 +1,5 @@
-import { DebugProtocol } from 'vscode-debugprotocol';
+// eslint-disable-next-line node/no-extraneous-import
+import {DebugProtocol} from 'vscode-debugprotocol';
 import {
   InitializedEvent,
   LoggingDebugSession,
@@ -25,11 +26,11 @@ import {
   EVENT_ERROR,
   EVENT_ERROR_FATAL,
   EVENT_THREAD_NEW,
-  SCOPE_LOCAL
+  SCOPE_LOCAL,
 } from './GDB';
-import { Record } from './parser/Record';
+import {Record} from './parser/Record';
 import * as vscode from 'vscode';
-import { OutputChannel, Terminal } from 'vscode';
+import {OutputChannel, Terminal} from 'vscode';
 
 export enum DebugLoggingLevel {
   OFF = 'off',
@@ -238,14 +239,15 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetBreakpointsArguments
   ): void {
     this.GDB.clearBreakpoints().then(() => {
-      this.GDB.setBreakpoints(args.source.path || '', args.breakpoints || null).then(
-        bps => {
-          response.body = {
-            breakpoints: bps,
-          };
-          this.sendResponse(response);
-        }
-      );
+      this.GDB.setBreakpoints(
+        args.source.path || '',
+        args.breakpoints || null
+      ).then(bps => {
+        response.body = {
+          breakpoints: bps,
+        };
+        this.sendResponse(response);
+      });
     });
   }
 
@@ -383,6 +385,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
         break;
 
+      case 'watch':
       case 'hover':
         // User has hovered over variable
         this.GDB.evaluateExpr(args.expression, args.frameId).then(
@@ -395,11 +398,6 @@ export class GDBDebugSession extends LoggingDebugSession {
           }
         );
         break;
-
-        case 'watch':
-          // TODO
-          this.error('vGDB does not yet support watching expressions');
-          break;
     }
   }
 
@@ -417,7 +415,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.DisconnectArguments
   ): void {
     // If this was an attach request do not kill the inferior
-    this.GDB.quit(args.terminateDebuggee == true);
+    this.GDB.quit(args.terminateDebuggee === true);
 
     // We do not need to wait until GDB quits
     this.sendResponse(response);

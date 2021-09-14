@@ -62,19 +62,20 @@
     "eslint": "^7.32.0",
     "glob": "^7.1.7",
     "mocha": "^9.1.0",
+    "tail-stream": "^0.3.4",
     "ts-loader": "^8.1.0",
     "typescript": "^4.3.5",
     "vsce": "^1.96.1",
     "vscode-debugadapter-testsupport": "^1.49.0",
-    "webpack": "^4.46.0",
+    "webpack": "^5.52.1",
     "webpack-cli": "^3.3.12"
   },
-  "main": "./out/extension",
+  "main": "./dist/ext/extension.js",
   "activationEvents": [
     "*",
-		"onDebug",
-		"onUri",
-		"onStartupFinished",
+    "onDebug",
+    "onUri",
+    "onStartupFinished",
     "onUri"
   ],
   "contributes": {
