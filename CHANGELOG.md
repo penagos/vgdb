@@ -1,6 +1,13 @@
 # Release Notes
 **This extension is under active development**
 
+## 0.2.0 (TBD)
+- Support variable watches
+- Support debug console command completion
+- Correctly escape debug console commands containing `"`
+- Upgrade dependencies
+- Other minor stability improvements
+
 ## 0.1.27 (July/23/2020)
 
 ### Enhancements
