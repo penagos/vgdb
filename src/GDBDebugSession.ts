@@ -391,11 +391,13 @@ export class GDBDebugSession extends LoggingDebugSession {
       case 'hover':
         this.GDB.evaluateExpr(args.expression, args.frameId).then(
           (result: any) => {
-            response.body = {
-              result: result,
-              variablesReference: 0,
-            };
-            this.sendResponse(response);
+            if (result) {
+              response.body = {
+                result: result,
+                variablesReference: 0,
+              };
+              this.sendResponse(response);
+            }
           }
         );
         break;

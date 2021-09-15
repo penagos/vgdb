@@ -607,7 +607,13 @@ export class GDB extends EventEmitter {
       cmd += ` "${expr}"`;
 
       this.sendCommand(cmd).then((record: ResultRecord) => {
-        resolve(this.sanitize(record.getResult('value'), false));
+        const r = record.getResult('value');
+
+        if (r) {
+          resolve(this.sanitize(r, false));
+        } else {
+          resolve(null);
+        }
       });
     });
   }
