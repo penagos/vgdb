@@ -2,31 +2,17 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Extension",
+			"name": "Run Extension",
 			"type": "extensionHost",
 			"request": "launch",
+			"runtimeExecutable": "${execPath}",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"/home/luis/sandbox"
+				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
-				"${workspaceFolder}/dist/ext/**/*.js"
+				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "npm: watch"
-		},
-		{
-			"name": "Web Extension",
-			"type": "pwa-extensionHost",
-			"debugWebWorkerHost": true,
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"${workspaceFolder}/sampleWebWorkerWorkspace"
-			],
-			"outFiles": [
-				"${workspaceFolder}/dist/web/**/*.js"
-			],
-			"preLaunchTask": "npm: watch-web"
+			"preLaunchTask": "${defaultBuildTask}"
 		},
 		{
 			"name": "Server",

@@ -78,6 +78,8 @@ export interface AttachRequestArguments
   externalConsole?: boolean;
   /** Should absolute filepaths be used? */
   useAbsoluteFilePaths?: boolean;
+  /** Shared libraries for deferred symbol loading */
+  sharedLibraries?: string[];
 }
 
 // This is the main class which implements the debug adapter protocol. It will
@@ -117,6 +119,24 @@ export class GDBDebugSession extends LoggingDebugSession {
     if (vscode.workspace.getConfiguration('vgdb').get('showErrorPopup')) {
       vscode.window.showErrorMessage(text);
     }
+  }
+
+  protected launchDebugger(
+    args: AttachRequestArguments | LaunchRequestArguments,
+    response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse
+  ): void {
+    // Only send initialized response once GDB is fully spawned
+    this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
+    this.GDB.spawn(args, this.terminal).then(() => {
+      // If deferred symbols are to be used, set that here
+      if (args.sharedLibraries !== undefined) {
+        // Since commands are sent in a blocking manner we do not need
+        // to spin on this request before responding to the launchRequest
+        this.GDB.deferLibraryLoading(args.sharedLibraries);
+      }
+
+      this.sendResponse(response);
+    });
   }
 
   protected async initializeRequest(
@@ -193,29 +213,14 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse,
     args: AttachRequestArguments
   ) {
-    // TODO: support startup commands like LaunchRequest
-    this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
-    this.GDB.spawn(args, this.terminal).then(() => {
-      this.sendResponse(response);
-    });
+    this.launchDebugger(args, response);
   }
 
   protected async launchRequest(
     response: DebugProtocol.LaunchResponse,
     args: LaunchRequestArguments
   ) {
-    // Only send initialized response once GDB is fully spawned
-    this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
-    this.GDB.spawn(args, this.terminal).then(() => {
-      // If deferred symbols are to be used, set that here
-      if (args.sharedLibraries !== undefined) {
-        // Since commands are sent in a blocking manner we do not need
-        // to spin on this request before responding to the launchRequest
-        this.GDB.deferLibraryLoading(args.sharedLibraries);
-      }
-
-      this.sendResponse(response);
-    });
+    this.launchDebugger(args, response);
   }
 
   protected async configurationDoneRequest(
@@ -354,16 +359,13 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.EvaluateResponse,
     args: DebugProtocol.EvaluateArguments
   ): void {
-    // GDB enumerates frames starting at 0
+    // GDB enumerates frames starting from 0
     if (args.frameId) {
       --args.frameId;
     }
 
     switch (args.context) {
       case 'repl':
-        // User is requesting evaluation of expr at debug console prompt.
-        // We cannot simply send it while the process is running -- we need
-        // to trigger an interrupt, issue the command, and continue execution
         if (!this.GDB.isStopped()) {
           this.GDB.pause(undefined, false).then(() => {
             this.GDB.execUserCmd(args.expression, args.frameId).then(
@@ -387,7 +389,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
       case 'watch':
       case 'hover':
-        // User has hovered over variable
         this.GDB.evaluateExpr(args.expression, args.frameId).then(
           (result: any) => {
             response.body = {
