@@ -12,6 +12,7 @@ import {
   OutputEvent,
   Variable,
   ThreadEvent,
+  CompletionItem,
 } from 'vscode-debugadapter';
 import {
   GDB,
@@ -28,7 +29,6 @@ import {
   EVENT_THREAD_NEW,
   SCOPE_LOCAL,
 } from './GDB';
-import {Record} from './parser/Record';
 import * as vscode from 'vscode';
 import {OutputChannel, Terminal} from 'vscode';
 
@@ -204,6 +204,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response.body.supportsSetVariable = true;
     response.body.supportsEvaluateForHovers = true;
     response.body.supportsConfigurationDoneRequest = true;
+    response.body.supportsCompletionsRequest = true;
 
     this.sendResponse(response);
     this.sendEvent(new InitializedEvent());
@@ -368,8 +369,7 @@ export class GDBDebugSession extends LoggingDebugSession {
       case 'repl':
         if (!this.GDB.isStopped()) {
           this.GDB.pause(undefined, false).then(() => {
-            this.GDB.execUserCmd(args.expression, args.frameId).then(
-              (result: Record) => {
+            this.GDB.execUserCmd(args.expression, args.frameId).then(() => {
                 // continue execution
                 this.GDB.continue().then(() => {
                   this.sendResponse(response);
@@ -378,8 +378,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
           });
         } else {
-          this.GDB.execUserCmd(args.expression, args.frameId).then(
-            (result: Record) => {
+          this.GDB.execUserCmd(args.expression, args.frameId).then(() => {
               this.sendResponse(response);
             }
           );
@@ -432,6 +431,19 @@ export class GDBDebugSession extends LoggingDebugSession {
       // TODO: fetch actual value from GDB
       response.body = {
         value: args.value,
+      };
+
+      this.sendResponse(response);
+    });
+  }
+
+  protected completionsRequest(
+    response: DebugProtocol.CompletionsResponse,
+    args: DebugProtocol.CompletionsArguments
+  ): void {
+    this.GDB.commandCompletions(args.text, args.column).then((completions: CompletionItem[]) => {
+      response.body ={
+        targets: completions
       };
 
       this.sendResponse(response);

@@ -4,7 +4,7 @@ import {Record} from './parser/Record';
 import {AsyncRecord, AsyncRecordType} from './parser/AsyncRecord';
 import {ResultRecord} from './parser/ResultRecord';
 import {StreamRecord} from './parser/StreamRecord';
-import {Breakpoint, Thread, StackFrame, Source} from 'vscode-debugadapter';
+import {Breakpoint, Thread, StackFrame, Source, CompletionItem} from 'vscode-debugadapter';
 import {OutputChannel, Terminal} from 'vscode';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -631,7 +631,8 @@ export class GDB extends EventEmitter {
         cmd += ` --frame ${frameID} --thread ${this.threadID}`;
       }
 
-      cmd += ` console "${expr}"`;
+      // Escape any quotes in user input
+      cmd += ` console "${expr.replace(/"/g, '\\"')}"`;
 
       this.sendCommand(cmd).then((record: ResultRecord) => {
         // If an error has resulted, also send an error event to show it to the user
@@ -752,6 +753,19 @@ export class GDB extends EventEmitter {
 
   public updateVar(variable: string, val: string): Promise<any> {
     return this.sendCommand(`set var ${variable} = ${val}`);
+  }
+
+  public commandCompletions(text: string, start: number): Promise<CompletionItem[]> {
+    return new Promise((resolve, reject) => {
+      this.sendCommand(`-complete "${text}"`).then((record: Record) => {
+        let items:CompletionItem[] = [];
+        record.getResult('matches').forEach((match: string) => {
+          items.push(new CompletionItem(match, start));
+        });
+
+        resolve(items);
+      });
+    });
   }
 
   public dispose() {
