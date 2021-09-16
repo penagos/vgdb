@@ -1,7 +1,7 @@
 {
   "name": "vgdb",
   "displayName": "vGDB",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "publisher": "penagos",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -71,6 +71,16 @@
           "type": "boolean",
           "default": false,
           "description": "Show popup error window on invalid GDB command"
+        },
+        "vgdb.enableReverseDebugging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable reverse debugging support. Requires GDB 7+. Note: this may considerably slow down debugging."
+        },
+        "vgdb.enableCommandCompletions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable debug console command completions."
         }
       }
     },

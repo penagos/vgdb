@@ -12,7 +12,7 @@ import {
   OutputEvent,
   Variable,
   ThreadEvent,
-  CompletionItem,
+  CompletionItem
 } from 'vscode-debugadapter';
 import {
   GDB,
@@ -204,7 +204,10 @@ export class GDBDebugSession extends LoggingDebugSession {
     response.body.supportsSetVariable = true;
     response.body.supportsEvaluateForHovers = true;
     response.body.supportsConfigurationDoneRequest = true;
-    response.body.supportsCompletionsRequest = true;
+    response.body.supportsDisassembleRequest = true;
+    response.body.supportsSteppingGranularity = true;
+    response.body.supportsCompletionsRequest = vscode.workspace.getConfiguration('vgdb').get('enableCommandCompletions');
+    response.body.supportsStepBack = vscode.workspace.getConfiguration('vgdb').get('enableReverseDebugging');
 
     this.sendResponse(response);
     this.sendEvent(new InitializedEvent());
@@ -324,7 +327,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.NextResponse,
     args: DebugProtocol.NextArguments
   ): void {
-    this.GDB.next(args.threadId).then(() => {
+    this.GDB.next(args.threadId, args.granularity || '').then(() => {
       this.sendResponse(response);
     });
   }
@@ -446,6 +449,19 @@ export class GDBDebugSession extends LoggingDebugSession {
         targets: completions
       };
 
+      this.sendResponse(response);
+    });
+  }
+
+  protected disassembleRequest(
+    response: DebugProtocol.DisassembleResponse,
+    args: DebugProtocol.DisassembleArguments
+  ): void {
+    this.GDB.disassemble(args.memoryReference).then(insts => {
+      response.body ={
+        instructions: insts
+      }
+  
       this.sendResponse(response);
     });
   }

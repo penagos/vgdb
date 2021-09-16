@@ -6,6 +6,7 @@ import {ResultRecord} from './parser/ResultRecord';
 import {StreamRecord} from './parser/StreamRecord';
 import {Breakpoint, Thread, StackFrame, Source, CompletionItem} from 'vscode-debugadapter';
 import {OutputChannel, Terminal} from 'vscode';
+import {DebugProtocol} from 'vscode-debugprotocol';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as ts from 'tail-stream';
@@ -677,17 +678,19 @@ export class GDB extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.sendCommand(`-stack-list-frames --thread ${threadID}`).then(
         (record: ResultRecord) => {
-          const stackFinal: StackFrame[] = [];
+          const stackFinal: DebugProtocol.StackFrame[] = [];
           record.getResult('stack').forEach((frame: any) => {
             frame = frame[1];
-            stackFinal.push(
-              new StackFrame(
-                threadID + parseInt(frame.level),
-                frame.func,
-                new Source(frame.file, frame.fullname),
-                parseInt(frame.line)
-              )
+
+            let sf:DebugProtocol.StackFrame = new StackFrame(
+              threadID + parseInt(frame.level),
+              frame.func,
+              new Source(frame.file, frame.fullname),
+              parseInt(frame.line)
             );
+
+            sf.instructionPointerReference = frame.addr;
+            stackFinal.push(sf);
           });
 
           resolve(stackFinal);
@@ -709,8 +712,13 @@ export class GDB extends EventEmitter {
     });
   }
 
-  public next(threadID: number): Promise<any> {
-    return this.sendCommand(`-exec-next --thread ${threadID}`);
+  public next(threadID: number, granularity: string): Promise<any> {
+    if (granularity === 'instruction') {
+      return this.sendCommand(`-exec-next-instruction --thread ${threadID}`);
+    } else {
+      // Treat a line as being synonymous with a statement
+      return this.sendCommand(`-exec-next --thread ${threadID}`);
+    }
   }
 
   public continue(threadID?: number): Promise<any> {
@@ -764,6 +772,25 @@ export class GDB extends EventEmitter {
         });
 
         resolve(items);
+      });
+    });
+  }
+
+  public disassemble(address: string): Promise<DebugProtocol.DisassembledInstruction[]> {
+    return new Promise((resolve, reject) => {
+      this.sendCommand(`-data-disassemble -a ${address} -- 0`).then((record: Record) => {
+        const insts = record.getResult('asm_insns');
+        let dasm: DebugProtocol.DisassembledInstruction[] = [];
+
+        insts.forEach(inst => {
+          const instDasm: DebugProtocol.DisassembledInstruction = {
+            address: inst.address,
+            instruction: inst.inst
+          };
+
+          dasm.push(instDasm);
+        });
+        resolve(dasm);
       });
     });
   }
