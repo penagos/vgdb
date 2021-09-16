@@ -333,7 +333,6 @@ export class GDB extends EventEmitter {
 
   public deferLibraryLoading(libraries: string[]): Promise<any> {
     this.sharedLibraries = libraries;
-    console.log(this.sharedLibraries);
     return this.sendCommand('-gdb-set auto-solib-add off');
   }
 
@@ -403,7 +402,6 @@ export class GDB extends EventEmitter {
           }
         } catch (error: any) {
           this.log(error.stack);
-          console.log(error.stack);
           this.emit(EVENT_ERROR_FATAL);
         }
       });
