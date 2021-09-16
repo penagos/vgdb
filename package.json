@@ -33,12 +33,13 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "compile": "tsc -p ./src",
+    "watch": "tsc -watch -p ./src"
   },
   "dependencies": {
     "await-notify": "1.0.1",
-    "vscode-debugadapter": "^1.49.0"
+    "vscode-debugadapter": "^1.49.0",
+    "tail-stream": "^0.3.4"
   },
   "devDependencies": {
     "@types/glob": "^7.1.4",
@@ -50,7 +51,6 @@
     "eslint": "^7.32.0",
     "glob": "^7.1.7",
     "mocha": "^9.1.0",
-    "tail-stream": "^0.3.4",
     "ts-loader": "^8.1.0",
     "typescript": "^4.3.5",
     "vsce": "^1.96.1",

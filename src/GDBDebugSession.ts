@@ -80,6 +80,8 @@ export interface AttachRequestArguments
   useAbsoluteFilePaths?: boolean;
   /** Shared libraries for deferred symbol loading */
   sharedLibraries?: string[];
+  /** Launch directory */
+  cwd: string;
 }
 
 // This is the main class which implements the debug adapter protocol. It will
@@ -126,6 +128,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse
   ): void {
     // Only send initialized response once GDB is fully spawned
+    this.GDB.setCWD(args.cwd);
     this.GDB.setDebug(args.debug || DebugLoggingLevel.OFF);
     this.GDB.spawn(args, this.terminal).then(() => {
       // If deferred symbols are to be used, set that here
@@ -247,7 +250,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments
   ): void {
-    this.GDB.clearBreakpoints().then(() => {
+    this.GDB.clearBreakpoints(args.source.path).then(() => {
       this.GDB.setBreakpoints(
         args.source.path || '',
         args.breakpoints || null

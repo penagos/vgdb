@@ -140,6 +140,11 @@ export class GDB extends EventEmitter {
   // Mapping of register numbers to their names
   private registers: string[] = [];
 
+  // Breakpoint mappings
+  private breakpoints = new Map();
+
+  private cwd: string = '';
+
   public constructor(outputChannel: OutputChannel) {
     super();
 
@@ -210,6 +215,10 @@ export class GDB extends EventEmitter {
 
   public setDebug(debug: DebugLoggingLevel) {
     this.debug = debug;
+  }
+
+  public setCWD(cwd: string) {
+    this.cwd = cwd;
   }
 
   private isLaunch(arg: any): arg is LaunchRequestArguments {
@@ -515,8 +524,27 @@ export class GDB extends EventEmitter {
     }
   }
 
-  public clearBreakpoints(): Promise<any> {
-    return this.sendCommand('-break-delete');
+  public clearBreakpoints(file: string | undefined): Promise<any> {
+    if (file) {
+      return new Promise((resolve, reject) => {
+        const pending: Promise<any>[] = [];
+
+        if (this.breakpoints.has(file)) {
+          this.breakpoints.get(file).forEach((bp: any) => {
+            pending.push(this.sendCommand(`-break-delete ${bp}`));
+          });
+
+          Promise.all(pending).then(brkpoints => {
+            this.breakpoints.delete(file);
+            resolve(true);
+          });
+        } else {
+          resolve(true);
+        }
+      });
+    } else {
+      return this.sendCommand('-break-delete');
+    }
   }
 
   public setBreakpoints(
@@ -528,20 +556,25 @@ export class GDB extends EventEmitter {
       const bpsVerified: Breakpoint[] = [];
 
       if (bps) {
+        this.breakpoints.set(sourceFile, []);
+
         bps.forEach((bp: any) => {
-          // If using filenames only, strip out path
+          let file = sourceFile;
+
           if (!this.useAbsoluteFilePaths) {
-            sourceFile = path.basename(sourceFile);
+            file = file.replace(this.cwd, '').replace(/^\//, '');
           }
 
           let promise = this.sendCommand(
-            `-break-insert -f ${sourceFile}:${bp.line}`
+            `-break-insert -f ${file}:${bp.line}`
           );
           bpsPending.push(promise);
           promise.then((record: ResultRecord) => {
             // If this is a conditional breakpoint we must relay the
             // expression to GDB and update the breakpoint
             const bpInfo = record.getResult('bkpt');
+
+            this.breakpoints.get(sourceFile).push(bpInfo.number);
 
             if (bp.condition) {
               promise = this.sendCommand(
