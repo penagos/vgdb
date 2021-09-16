@@ -33,6 +33,7 @@ export const EVENT_THREAD_NEW = 'thread-created';
 export const EVENT_SOLIB_LOADED = 'library-loaded';
 
 export const SCOPE_LOCAL = 1000;
+export const SCOPE_REGISTERS = 2000;
 
 // Used as an abstraction for integrated/non-integrated terminals
 abstract class TerminalWindow {
@@ -135,6 +136,9 @@ export class GDB extends EventEmitter {
 
   // Should we use absolute file paths when setting breakpoints?
   private useAbsoluteFilePaths = true;
+
+  // Mapping of register numbers to their names
+  private registers: string[] = [];
 
   public constructor(outputChannel: OutputChannel) {
     super();
@@ -570,7 +574,6 @@ export class GDB extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.sendCommand('-gdb-set target-async on').then(() => {
         return this.sendCommand('-exec-run').then(() => {
-          // TODO: timing on this seems to be off for remoteSSH
           vscode.commands
             .executeCommand('workbench.action.terminal.clear')
             .then(() => {
@@ -699,16 +702,28 @@ export class GDB extends EventEmitter {
     });
   }
 
-  public getVars(reference: number): Promise<any> {
+  public getVars(reference: number, fetchLocal: boolean): Promise<any> {
     return new Promise((resolve, reject) => {
-      // TODO: support more than just frame locals
-      this.sendCommand(
-        `-stack-list-variables --thread ${this.threadID} --frame ${
-          reference - this.threadID
-        } --all-values`
-      ).then((record: Record) => {
-        resolve(record.getResult('variables'));
-      });
+      if (fetchLocal) {
+        this.sendCommand(
+          `-stack-list-variables --thread ${this.threadID} --frame ${
+            reference - SCOPE_LOCAL - this.threadID
+          } --all-values`
+        ).then((record: Record) => {
+          resolve(record.getResult('variables'));
+        });
+      } else {
+        this.cacheRegisterNames().then(() => {
+          this.sendCommand(`-data-list-register-values r`).then((record: Record) => {
+            resolve(record.getResult('register-values').map(reg => {
+              return {
+                name: this.registers[reg.number],
+                value: reg.value
+              }
+            }).filter(reg => reg.name));
+          });
+        });
+      }
     });
   }
 
@@ -791,6 +806,18 @@ export class GDB extends EventEmitter {
           dasm.push(instDasm);
         });
         resolve(dasm);
+      });
+    });
+  }
+
+  private cacheRegisterNames(): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.sendCommand('-data-list-register-names').then((record: Record) => {
+        record.getResult('register-names').forEach((reg: string, idx: number) => {
+          this.registers[idx] = reg;
+        });
+
+        resolve(true);
       });
     });
   }

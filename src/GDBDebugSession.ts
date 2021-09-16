@@ -7,7 +7,6 @@ import {
   StoppedEvent,
   StackFrame,
   Thread,
-  Scope,
   ContinuedEvent,
   OutputEvent,
   Variable,
@@ -28,6 +27,7 @@ import {
   EVENT_ERROR_FATAL,
   EVENT_THREAD_NEW,
   SCOPE_LOCAL,
+  SCOPE_REGISTERS
 } from './GDB';
 import * as vscode from 'vscode';
 import {OutputChannel, Terminal} from 'vscode';
@@ -286,10 +286,25 @@ export class GDBDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ScopesResponse,
     args: DebugProtocol.ScopesArguments
   ): void {
-    // We will always create the same scopes regardless of the state of the
-    // debugger
+    const locScope: DebugProtocol.Scope = {
+      name: 'Locals',
+      variablesReference: SCOPE_LOCAL + args.frameId,
+      expensive: false,
+      presentationHint: 'locals'
+    };
+
+    const regScope: DebugProtocol.Scope = {
+      name: 'Registers',
+      variablesReference: SCOPE_REGISTERS,
+      expensive: true,
+      presentationHint: 'registers'
+    };
+
     response.body = {
-      scopes: [new Scope('Local', SCOPE_LOCAL + args.frameId, false)],
+      scopes: [
+        locScope,
+        regScope
+      ],
     };
     this.sendResponse(response);
   }
@@ -299,15 +314,14 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.VariablesArguments,
     request?: DebugProtocol.Request
   ) {
-    // For now we assume all requests are for SCOPE_LOCAL -- will need to
-    // be revisited once support for additional scopes is added
-    this.GDB.getVars(args.variablesReference - SCOPE_LOCAL).then(
+    const isLocalScope = args.variablesReference !== SCOPE_REGISTERS;
+    this.GDB.getVars(args.variablesReference, isLocalScope).then(
       (vars: any[]) => {
         const variables: Variable[] = [];
 
         vars.forEach(variable => {
           // If this is a string strip out special chars
-          if (typeof variable.value === 'string') {
+          if (isLocalScope && typeof variable.value === 'string') {
             variable.value = this.GDB.sanitize(variable.value, false);
           }
 
