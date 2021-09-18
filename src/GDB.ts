@@ -10,13 +10,13 @@ import {DebugProtocol} from 'vscode-debugprotocol';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as ts from 'tail-stream';
-import * as path from 'path';
 import {spawn} from 'child_process';
 import {
   AttachRequestArguments,
   LaunchRequestArguments,
   DebugLoggingLevel,
 } from './GDBDebugSession';
+import path = require('path');
 
 // GDB stop reasons
 export const EVENT_OUTPUT = 'output';
@@ -31,6 +31,7 @@ export const EVENT_ERROR = 'error';
 export const EVENT_ERROR_FATAL = 'error-fatal';
 export const EVENT_THREAD_NEW = 'thread-created';
 export const EVENT_SOLIB_LOADED = 'library-loaded';
+export const EVENT_SOLIB_ADD = 'solib-event';
 
 export const SCOPE_LOCAL = 1000;
 export const SCOPE_REGISTERS = 2000;
@@ -142,6 +143,8 @@ export class GDB extends EventEmitter {
 
   // Breakpoint mappings
   private breakpoints = new Map();
+
+  private loadedLibraries = new Map();
 
   private cwd: string = '';
 
@@ -333,6 +336,7 @@ export class GDB extends EventEmitter {
 
   public deferLibraryLoading(libraries: string[]): Promise<any> {
     this.sharedLibraries = libraries;
+    this.sendCommand('-gdb-set stop-on-solib-events 1');
     return this.sendCommand('-gdb-set auto-solib-add off');
   }
 
@@ -376,8 +380,6 @@ export class GDB extends EventEmitter {
     // full output has been transmitted as denoted by a trailing newline
     const nPos = this.ob.lastIndexOf('\n');
     if (nPos !== -1) {
-      this.ob = this.ob.substr(0, nPos);
-
       // If multiple lines have buffered, handle each one
       const lines = this.ob.substr(0, nPos).split('\n') as string[];
 
@@ -449,6 +451,16 @@ export class GDB extends EventEmitter {
                       }
                       break;
 
+                    case EVENT_SOLIB_ADD:
+                        this.sharedLibraries.forEach((library: string) => {
+                          if (this.loadedLibraries.get(library)) {
+                            this.sendCommand(`sharedlibrary ${library}`);
+                          }
+                        });
+
+                        this.continue();
+                      break;
+
                     default:
                       throw new Error('unknown stop reason: ' + reason);
                   }
@@ -488,8 +500,7 @@ export class GDB extends EventEmitter {
               // whitelist. If not, unload it
               const libLoaded = path.basename(record.getResult('id'));
               if (this.sharedLibraries.indexOf(libLoaded) > -1) {
-                this.log(`Loading ${libLoaded}`);
-                this.sendCommand(`sharedlibrary ${libLoaded}`);
+                this.loadedLibraries.set(libLoaded, true);
               }
             }
             break;
@@ -692,15 +703,15 @@ export class GDB extends EventEmitter {
 
   public getThreads(): Promise<any> {
     return new Promise((resolve, reject) => {
-      this.sendCommand('-thread-info').then((record: ResultRecord) => {
-        const threadsResult: Thread[] = [];
-        const threads = record.getResult('threads');
-        for (let i = 0, len = threads.length; i < len; i++) {
-          const thread = new Thread(parseInt(threads[i].id), threads[i].name);
-          threadsResult.push(thread);
-        }
-        resolve(threadsResult);
-      });
+        this.sendCommand('-thread-info').then((record: ResultRecord) => {
+          const threadsResult: Thread[] = [];
+          const threads = record.getResult('threads');
+          for (let i = 0, len = threads.length; i < len; i++) {
+            const thread = new Thread(parseInt(threads[i].id), threads[i].name);
+            threadsResult.push(thread);
+          }
+          resolve(threadsResult);
+        });
     });
   }
 
