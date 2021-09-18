@@ -322,13 +322,14 @@ export class GDBDebugSession extends LoggingDebugSession {
       (vars: any[]) => {
         const variables: Variable[] = [];
 
-        vars.forEach(variable => {
+        vars.forEach((variable, reference:number) => {
           // If this is a string strip out special chars
           if (isLocalScope && typeof variable.value === 'string') {
             variable.value = this.GDB.sanitize(variable.value, false);
           }
 
-          variables.push(new Variable(variable.name, variable.value));
+          const v: DebugProtocol.Variable = new Variable(variable.name, variable.value, variable.hasChildren ? reference : 0);
+          variables.push(v);
         });
 
         response.body = {

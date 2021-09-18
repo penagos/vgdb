@@ -141,6 +141,11 @@ export class GDB extends EventEmitter {
   // Mapping of register numbers to their names
   private registers: string[] = [];
 
+  // Mapping of symbolic variable names to GDB variable references
+  private variables = new Map();
+
+  private variableReferenceID = 0;
+
   // Breakpoint mappings
   private breakpoints = new Map();
 
@@ -306,6 +311,8 @@ export class GDB extends EventEmitter {
       this.inputHandle.on('open', () => {
         const cmdsPending: Promise<any>[] = [];
 
+        this.cacheRegisterNames();
+
         if (this.isLaunch(args) && args.startupCmds) {
           args.startupCmds.forEach(cmd => {
             cmdsPending.push(this.sendCommand(cmd));
@@ -322,12 +329,9 @@ export class GDB extends EventEmitter {
   // Send an MI command to GDB
   public sendCommand(cmd: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      const token = ++this.token;
-      cmd = token + cmd;
       this.log(cmd);
-      this.inputHandle.write(cmd + '\n');
-
-      this.handlers[token] = (record: Record) => {
+      this.inputHandle.write(`${(++this.token) + cmd}\n`);
+      this.handlers[this.token] = (record: Record) => {
         this.log(record.prettyPrint());
         resolve(record);
       };
@@ -473,15 +477,22 @@ export class GDB extends EventEmitter {
                 this.threadID = -1;
                 all = false;
 
-                // If threadID is not a number, this means all threads have continued
-                tid = parseInt(record.getResult('thread-id'));
-                if (isNaN(tid)) {
-                  tid = this.threadID;
-                  all = true;
-                }
+                // Clear variable caches
+                // TODO: could listen for changes to be more efficient
+                this.variables = new Map();
+                this.variableReferenceID = 0;
 
-                // For now we assume all threads resume execution
-                this.emit(EVENT_RUNNING, this.threadID, all);
+                this.sendCommand('-var-delete').then(() => {
+                  // If threadID is not a number, this means all threads have continued
+                  tid = parseInt(record.getResult('thread-id'));
+                  if (isNaN(tid)) {
+                    tid = this.threadID;
+                    all = true;
+                  }
+
+                  // For now we assume all threads resume execution
+                  this.emit(EVENT_RUNNING, this.threadID, all);
+                });
                 break;
               }
             }
@@ -705,11 +716,10 @@ export class GDB extends EventEmitter {
     return new Promise((resolve, reject) => {
         this.sendCommand('-thread-info').then((record: ResultRecord) => {
           const threadsResult: Thread[] = [];
-          const threads = record.getResult('threads');
-          for (let i = 0, len = threads.length; i < len; i++) {
-            const thread = new Thread(parseInt(threads[i].id), threads[i].name);
-            threadsResult.push(thread);
-          }
+          record.getResult('threads').forEach(thread => {
+            threadsResult.push(new Thread(parseInt(thread.id), thread.name));
+          });
+
           resolve(threadsResult);
         });
     });
@@ -744,26 +754,95 @@ export class GDB extends EventEmitter {
     });
   }
 
+  private async getVariableChildren(GDBVariableName: string): Promise<any> {
+    // Variable expanded, fetch GDB children
+    // TODO: hard coding scopes to start at 1000 is not good for scalability -- rethink this
+    // TODO: clean this up
+    return new Promise((resolve, reject) => {
+      this.sendCommand(`-var-list-children --simple-values "${GDBVariableName}"`).then((children) => {
+        let childrenTemp = new Map();
+
+        const c = children.getResult('children');
+        const pending: Promise<any>[] = [];
+
+        if (c) {
+          for (let index = 0; index < c.length; index++) {
+            const child = c[index];
+            // Check to see if this is a pseudo child on an aggregate type
+            // such as private, public, protected, etc. If so, traverse into
+            // child and annotate its consituents with such attribute for
+            // special treating by the front-end. Note we could have mulitple
+            // such pseudo-levels at a given level
+
+            // TODO: stick this in a utility fcn
+            if (!child[1].type && !child[1].value) {
+              const p = this.getVariableChildren(child[1].name);
+              pending.push(p);
+              p.then(vars => {
+                childrenTemp = new Map([...childrenTemp, ...vars]);
+              });
+            } else {  
+              const childVar = {
+                name: child[1].exp,
+                hasChildren: parseInt(child[1].numchild),
+                gdbName: child[1].name,
+                value: child[1].value || ''
+              };
+
+              // TODO: clean this up
+              childrenTemp.set(++this.variableReferenceID, childVar);
+              this.variables.set(this.variableReferenceID, childVar);
+            }
+          }
+        }
+
+        Promise.all(pending).then(() => {
+          resolve(childrenTemp);
+        });
+      });
+    });
+  }
+
   public getVars(reference: number, fetchLocal: boolean): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (fetchLocal) {
+      if (reference < SCOPE_LOCAL) {
+        this.getVariableChildren(this.variables.get(reference).gdbName).then(vars => resolve(vars));
+      } else if (fetchLocal) {
         this.sendCommand(
           `-stack-list-variables --thread ${this.threadID} --frame ${
             reference - SCOPE_LOCAL - this.threadID
-          } --all-values`
+          } --no-frame-filters --simple-values`
         ).then((record: Record) => {
-          resolve(record.getResult('variables'));
+          const pending: Promise<any>[] = [];
+
+          // Ask GDB to create a new variable so we can correctly display nested
+          // variables via reference IDs. When execution is resumed, delete all
+          // temporarily created variables to avoid polluting future breaks
+          record.getResult('variables').forEach(variable => {
+            // TODO: single source with other branch
+            pending.push(this.sendCommand(`-var-create - * "${variable.name}"`).then(gdbVariable => {
+              this.variables.set(++this.variableReferenceID, {
+                name: variable.name,
+                hasChildren: parseInt(gdbVariable.getResult('numchild')),
+                gdbName: gdbVariable.getResult('name'),
+                value: gdbVariable.getResult('value')
+              });
+            }));
+          });
+
+          Promise.all(pending).then(() => {
+            // Resolve outer promise once all prior promises have completed
+            resolve(this.variables);
+          });
         });
       } else {
-        this.cacheRegisterNames().then(() => {
-          this.sendCommand(`-data-list-register-values r`).then((record: Record) => {
-            resolve(record.getResult('register-values').map(reg => {
-              return {
-                name: this.registers[reg.number],
-                value: reg.value
-              }
-            }).filter(reg => reg.name));
-          });
+        this.sendCommand(`-data-list-register-values r`).then((record: Record) => {
+          resolve(record.getResult('register-values').map(reg => {
+            return {
+              name: this.registers[reg.number],
+              value: reg.value
+            }
+          }).filter(reg => reg.name));
         });
       }
     });

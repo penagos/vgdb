@@ -72,7 +72,7 @@ export class MIParser {
   }
 
   private parseToken(match: any[]): number {
-    if (match[TOKEN_POS] != '') {
+    if (match[TOKEN_POS] !== '') {
       this.token = parseInt(match[TOKEN_POS]);
     } else {
       this.token = NaN;
@@ -111,7 +111,7 @@ export class MIParser {
       record.setClass(match[1]);
       this.buffer = this.buffer.substring(match[0].length);
 
-      while (this.buffer[0] == ',') {
+      while (this.buffer[0] === ',') {
         // Consume , and read result
         this.buffer = this.buffer.substr(1);
 
@@ -142,7 +142,7 @@ export class MIParser {
       // Consume first part of match, parse results*
       this.buffer = this.buffer.substring(match[0].length);
 
-      while (this.buffer[0] == ',') {
+      while (this.buffer[0] === ',') {
         // Consume , and read result
         this.buffer = this.buffer.substr(1);
         const result = this.parseResult();
@@ -209,7 +209,7 @@ export class MIParser {
       if ((result = this.parseResult())) {
         tuple[result[0]] = result[1];
       }
-    } while (this.buffer[0] == ',');
+    } while (this.buffer[0] === ',');
 
     // Conbsume last }
     this.buffer = this.buffer.substring(1);
@@ -227,7 +227,7 @@ export class MIParser {
 
     // Is this a list of values or list of results?
     if (
-      [VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) != -1
+      [VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) !== -1
     ) {
       // Value list
       while ((match = this.parseValue())) {
