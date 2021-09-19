@@ -238,7 +238,7 @@ export class GDB extends EventEmitter {
     terminal: Terminal
   ): Promise<any> {
     return new Promise((resolve, reject) => {
-      let envVarsSetupCmd;
+      let envVarsSetupCmd = '';
       // Spawn the GDB process in the integrated terminal. In order to
       // correctly separate inferior output from GDB output and pipe
       // them to the correct handlers we use some hacks:
@@ -283,18 +283,14 @@ export class GDB extends EventEmitter {
       const launchCmd = this.createLaunchCommand();
       this.log(launchCmd);
 
-      if (envVarsSetupCmd && this.terminal) {
-        this.terminal.sendCommand(envVarsSetupCmd);
-      }
-
       // If the launch has requested an external terminal, spawn one. If so,
       // we will not clear the old terminal. We only clear the integrated
       // terminal if we will be reusing it
       if (args.externalConsole !== undefined && args.externalConsole) {
-        this.terminal = new ExternalTerminal(`bash -c "${launchCmd}"`);
+        this.terminal = new ExternalTerminal(`${envVarsSetupCmd}bash -c "${launchCmd}"`);
       } else {
         this.terminal = new IntegratedTerminal(
-          `bash -c "${launchCmd}"`,
+          `${envVarsSetupCmd}bash -c "${launchCmd}"`,
           terminal
         );
       }
@@ -368,7 +364,7 @@ export class GDB extends EventEmitter {
     let cmd = '';
 
     Object.keys(envVars).forEach((key: string) => {
-      cmd = `export ${key} = ${envVars[key]}; ${cmd}`;
+      cmd = `export ${key}=${envVars[key]}; ${cmd}`;
     });
 
     return cmd;
