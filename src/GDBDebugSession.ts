@@ -183,7 +183,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
       // TODO: handle other signals
-      this.sendEvent(new StoppedEvent('pause', threadID));
+      this.sendEvent(new StoppedEvent('exception', threadID));
     });
 
     this.GDB.on(EVENT_PAUSED, () => {
@@ -209,6 +209,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response.body.supportsConfigurationDoneRequest = true;
     response.body.supportsDisassembleRequest = true;
     response.body.supportsSteppingGranularity = true;
+    response.body.supportsExceptionInfoRequest = true;
     response.body.supportsCompletionsRequest = vscode.workspace.getConfiguration('vgdb').get('enableCommandCompletions');
     response.body.supportsStepBack = vscode.workspace.getConfiguration('vgdb').get('enableReverseDebugging');
 
@@ -486,7 +487,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.CompletionsArguments
   ): void {
     this.GDB.commandCompletions(args.text, args.column).then((completions: CompletionItem[]) => {
-      response.body ={
+      response.body = {
         targets: completions
       };
 
@@ -499,11 +500,26 @@ export class GDBDebugSession extends LoggingDebugSession {
     args: DebugProtocol.DisassembleArguments
   ): void {
     this.GDB.disassemble(args.memoryReference).then(insts => {
-      response.body ={
+      response.body = {
         instructions: insts
       }
   
       this.sendResponse(response);
     });
+  }
+
+  protected exceptionInfoRequest(
+    response: DebugProtocol.ExceptionInfoResponse,
+    args: DebugProtocol.ExceptionInfoArguments
+  ): void {
+    const exception = this.GDB.getLastException();
+
+    response.body = {
+      exceptionId: exception.name,
+      breakMode: 'unhandled',
+      description: exception.description
+    };
+
+    this.sendResponse(response);
   }
 }

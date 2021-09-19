@@ -153,6 +153,8 @@ export class GDB extends EventEmitter {
 
   private cwd: string = '';
 
+  private lastException:any = null;
+
   public constructor(outputChannel: OutputChannel) {
     super();
 
@@ -444,6 +446,15 @@ export class GDB extends EventEmitter {
 
                     case EVENT_SIGNAL:
                       if (this.handleSIGINT) {
+                        // TODO: handle other types of signals
+                        const frame = record.getResult('frame');
+
+                        // TODO: make a class for this
+                        this.lastException = {
+                          name: `${record.getResult('signal-meaning')} (${record.getResult('signal-name')})`,
+                          description: `${frame.addr} in ${frame.func} at ${frame.file}:${frame.line}`
+                        };
+
                         this.emit(reason, this.threadID);
                       } else {
                         // Reset for next signal since commands are honored in sync
@@ -475,10 +486,9 @@ export class GDB extends EventEmitter {
 
                 // Clear variable caches
                 // TODO: could listen for changes to be more efficient
-                this.variables = new Map();
-                this.variableReferenceID = 0;
+                this.clearVariables();
 
-                this.sendCommand('-var-delete').then(() => {
+                this.clearVariables().then(() => {
                   // If threadID is not a number, this means all threads have continued
                   tid = parseInt(record.getResult('thread-id'));
                   if (isNaN(tid)) {
@@ -800,10 +810,19 @@ export class GDB extends EventEmitter {
   }
 
   public getVars(reference: number, fetchLocal: boolean): Promise<any> {
+    // This can be called in 1 of 2 contexts -- when we switch from a running
+    // state to a paused state (by way of a breakpoint, interrupt or exception),
+    // or after a REPL command is evaluated in the debug console. If the latter,
+    // we simply solicit an update from GDB for variables already being tracked.
     return new Promise((resolve, reject) => {
       if (reference < SCOPE_LOCAL) {
         this.getVariableChildren(this.variables.get(reference).gdbName).then(vars => resolve(vars));
       } else if (fetchLocal) {
+        // TODO: refactor this -- we do not need to refetch everything
+        if (this.variables) {
+          this.clearVariables();
+        }
+
         this.sendCommand(
           `-stack-list-variables --thread ${this.threadID} --frame ${
             reference - SCOPE_LOCAL - this.threadID
@@ -939,9 +958,20 @@ export class GDB extends EventEmitter {
     });
   }
 
+  private clearVariables(): Promise<void> {
+    this.variables = new Map();
+    this.variableReferenceID = 0;
+
+    return this.sendCommand('-var-delete');
+  }
+
   public dispose() {
     if (this.terminal) {
       this.terminal.destroy();
     }
+  }
+
+  public getLastException() {
+    return this.lastException;
   }
 }

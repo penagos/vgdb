@@ -1,14 +1,21 @@
 # Release Notes
 **This extension is under active development**
 
-## 0.2.0 (TBD)
+## 1.0.0 (TBD)
+
+This release includes numerous bug fixes and additional features as outlined below:
+
 - Support variable watches
 - Support debug console command completion
 - Support disassembly view
 - Show registers in variables pane
 - Correctly escape debug console commands containing `"`
+- Correctly handle debugger exceptions
+- Correctly handle environment variables
+- Correctly handle deferred symbol loading
+- Support (optional) MI command syntax in debug console
 - Upgrade dependencies
-- Other minor stability improvements
+- Other minor bug fixes and stability improvements
 
 ## 0.1.27 (July/23/2020)
 
