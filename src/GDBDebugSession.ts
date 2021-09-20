@@ -182,7 +182,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     });
 
     this.GDB.on(EVENT_SIGNAL, (threadID: number) => {
-      // TODO: handle other signals
       this.sendEvent(new StoppedEvent('exception', threadID));
     });
 
@@ -517,7 +516,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     response.body = {
       exceptionId: exception.name,
       breakMode: 'unhandled',
-      description: exception.description
+      description: exception.location
     };
 
     this.sendResponse(response);

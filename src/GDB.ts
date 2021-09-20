@@ -60,8 +60,6 @@ class IntegratedTerminal extends TerminalWindow {
     // Nothing needs to be done for integrated terminal
   }
 }
-
-// Todo implement terminateRequest and close external terminal
 class ExternalTerminal extends TerminalWindow {
   constructor(cmd: string) {
     super();
@@ -78,6 +76,18 @@ class ExternalTerminal extends TerminalWindow {
   public destroy() {
     // Close terminal if not done already
     this.terminal.kill();
+  }
+}
+
+// Used to represent any signal thrown from GDB, including SIGSEGV, SIGINT, etc.
+class GDBException {
+  name: string;
+  location: string;
+
+  constructor(record: Record) {
+    const frame = record.getResult('frame');
+    this.name = `${record.getResult('signal-meaning')} (${record.getResult('signal-name')})`,
+    this.location = `${frame.addr} in ${frame.func} at ${frame.file}:${frame.line}`
   }
 }
 
@@ -153,7 +163,7 @@ export class GDB extends EventEmitter {
 
   private cwd: string = '';
 
-  private lastException:any = null;
+  private lastException: GDBException;
 
   public constructor(outputChannel: OutputChannel) {
     super();
@@ -446,15 +456,7 @@ export class GDB extends EventEmitter {
 
                     case EVENT_SIGNAL:
                       if (this.handleSIGINT) {
-                        // TODO: handle other types of signals
-                        const frame = record.getResult('frame');
-
-                        // TODO: make a class for this
-                        this.lastException = {
-                          name: `${record.getResult('signal-meaning')} (${record.getResult('signal-name')})`,
-                          description: `${frame.addr} in ${frame.func} at ${frame.file}:${frame.line}`
-                        };
-
+                        this.lastException = new GDBException(record);
                         this.emit(reason, this.threadID);
                       } else {
                         // Reset for next signal since commands are honored in sync
@@ -484,8 +486,6 @@ export class GDB extends EventEmitter {
                 this.threadID = -1;
                 all = false;
 
-                // Clear variable caches
-                // TODO: could listen for changes to be more efficient
                 this.clearVariables();
 
                 this.clearVariables().then(() => {
@@ -703,18 +703,12 @@ export class GDB extends EventEmitter {
           this.emit(EVENT_ERROR, record.getResult('msg').replace(/\\/g, ''));
         }
 
+        // TODO: if this was a stack navigation command, update the callstack
+        // with the correct newly selected stackframe. Currently, the debug
+        // adapter protocol does not support such behavior. See:
+        // https://github.com/microsoft/debug-adapter-protocol/issues/118
         resolve(record.getResult('value'));
       });
-
-      // If this was an up or down command, send a continued and paused
-      // event to trick VSCode into re-requesting the stacktrace.
-      // TODO: this will not cause the right stackframe to be selected as
-      // the debug adapter protocol does not support this
-      // See https://github.com/microsoft/debug-adapter-protocol/issues/118
-      if (expr === 'up' || expr === 'down') {
-        this.emit(EVENT_RUNNING, this.threadID, true);
-        this.emit(EVENT_PAUSED);
-      }
     });
   }
 
@@ -971,7 +965,7 @@ export class GDB extends EventEmitter {
     }
   }
 
-  public getLastException() {
+  public getLastException(): GDBException {
     return this.lastException;
   }
 }
