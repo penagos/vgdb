@@ -1,8 +1,9 @@
-import {Record} from './Record';
+import {OutputRecord} from './OutputRecord';
 import {AsyncRecord} from './AsyncRecord';
 import {StreamRecord} from './StreamRecord';
 import {Result} from './Result';
 import {ResultRecord} from './ResultRecord';
+import { OutOfBandRecord } from './OutOfBandRecord';
 
 // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
 // First sets below -- Regex exprs defined with `` need to escape \ char
@@ -37,35 +38,22 @@ export class MIParser {
   private buffer: string = '';
   private token: number = 0;
 
-  public parse(str: string): Record | null {
-    let record: Record | null;
+  public parse(str: string): OutputRecord | null {
+    let record: OutputRecord | null;
     this.buffer = str;
 
     try {
       // ( out-of-band-record )* [ result-record ] "(gdb)" nl
-      record = this.parseOutOfBandRecord();
+      record = this.parseOutOfBandRecord()
+        || this.parseResultRecord()
+        || this.parseGDBPrompt();
 
-      if (!record) {
-        record = this.parseResultRecord();
-      }
-
-      if (!record) {
-        // (gdb) -- if not the inferior produced stdout
-        if (this.buffer.trimRight() == GDB_PROMPT) {
-          return null;
-        } else {
-          // Print to output window
+        if (record) {
+          record.response = str;
         }
-      }
     } catch (error: any) {
-      // Throw to adapter
-      console.error('Parser error: ' + error.message);
+      console.error(`Parser error: ${error.message}`);
       throw error;
-    }
-
-    // DEBUG only
-    if (record) {
-      record.response = str;
     }
 
     return record;
@@ -81,7 +69,15 @@ export class MIParser {
     return this.token;
   }
 
-  private parseOutOfBandRecord() {
+  private parseGDBPrompt(): null {
+    if (this.buffer.trimRight() !== GDB_PROMPT) {
+      new Error('Unexpected GDB symbol found in output.');
+    }
+
+    return null;
+  }
+
+  private parseOutOfBandRecord(): OutOfBandRecord | null {
     // async-record | stream-record
     let match: any[] | null;
 
@@ -98,7 +94,7 @@ export class MIParser {
     } else return null;
   }
 
-  private parseAsyncRecord() {
+  private parseAsyncRecord(): AsyncRecord {
     // exec-async-output | status-async-output | notify-async-output
     // First character denotes result class
     let match: any, result: any;
@@ -126,12 +122,11 @@ export class MIParser {
     return record;
   }
 
-  private parseStreamRecord() {
-    // TODO
-    return new StreamRecord(1);
+  private parseStreamRecord(): StreamRecord {
+    return new StreamRecord(this.token, this.buffer[1]);
   }
 
-  private parseResultRecord() {
+  private parseResultRecord(): ResultRecord | null {
     // [ token ] "^" result-class ( "," result )* nl
     let match: any, record: any;
 

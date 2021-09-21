@@ -1,6 +1,11 @@
-export abstract class Record {
+/**
+ * Implements a GDBMI output record. This is the start symbol for any GDB output
+ * This class is not intended to be directly instantiable. Instead, see:
+ * ResultRecord, StreamRecord and OutOfBandRecord
+ */
+export abstract class OutputRecord {
   public response: string = '';
-  protected token: number;
+  protected readonly token: number;
   protected abstract type?: any;
   protected results: Map<string, any>;
   private klass?: string;
@@ -38,9 +43,7 @@ export abstract class Record {
     return this.results.get(key);
   }
 
-  // Strip slashes, remove token identifier
   public prettyPrint(): string {
-    //return this.response.substring(2, this.response.length - 1);
     return this.response;
   }
 }

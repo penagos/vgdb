@@ -1,6 +1,6 @@
 import {MIParser, STOPPED, RUNNING, ERROR} from './parser/MIParser';
 import {EventEmitter} from 'events';
-import {Record} from './parser/Record';
+import {OutputRecord} from './parser/OutputRecord';
 import {AsyncRecord, AsyncRecordType} from './parser/AsyncRecord';
 import {ResultRecord} from './parser/ResultRecord';
 import {StreamRecord} from './parser/StreamRecord';
@@ -15,7 +15,7 @@ import {
   AttachRequestArguments,
   LaunchRequestArguments,
   DebugLoggingLevel,
-} from './GDBDebugSession';
+} from '../../DebugSession';
 import path = require('path');
 
 // GDB stop reasons
@@ -70,7 +70,7 @@ class ExternalTerminal extends TerminalWindow {
   }
 
   public sendCommand(cmd: string) {
-    this.terminal.stdin.write(cmd + '\n');
+    this.terminal.stdin.write(`${cmd}\n`);
   }
 
   public destroy() {
@@ -84,7 +84,7 @@ class GDBException {
   name: string;
   location: string;
 
-  constructor(record: Record) {
+  constructor(record: OutputRecord) {
     const frame = record.getResult('frame');
     this.name = `${record.getResult('signal-meaning')} (${record.getResult('signal-name')})`,
     this.location = `${frame.addr} in ${frame.func} at ${frame.file}:${frame.line}`
@@ -130,7 +130,7 @@ export class GDB extends EventEmitter {
 
   // Callbacks to execute when a command identified by "token" is resolved
   // by the debugger
-  private handlers: {[token: number]: (record: Record) => any};
+  private handlers: {[token: number]: (record: OutputRecord) => any};
 
   // The current thread on which the debugger is stopped on. If the debugger
   // is not currently stopped on any thread, this value is -1. Also serves
@@ -360,7 +360,7 @@ export class GDB extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.log(cmd);
       this.inputHandle.write(`${(++this.token) + cmd}\n`);
-      this.handlers[this.token] = (record: Record) => {
+      this.handlers[this.token] = (record: OutputRecord) => {
         this.log(record.prettyPrint());
         resolve(record);
       };
@@ -405,7 +405,7 @@ export class GDB extends EventEmitter {
 
   // Called on any stdout produced by GDB Process
   private stdoutHandler(data: any) {
-    let record: Record | null;
+    let record: OutputRecord | null;
     const str = data.toString('utf8');
     this.ob += str;
 
@@ -443,7 +443,7 @@ export class GDB extends EventEmitter {
     }
   }
 
-  private handleParsedResult(record: Record) {
+  private handleParsedResult(record: OutputRecord) {
     switch (record.constructor) {
       case AsyncRecord:
         // Notify GDB client of status change
@@ -612,9 +612,7 @@ export class GDB extends EventEmitter {
             file = file.replace(this.cwd, '').replace(/^\//, '');
           }
 
-          let promise = this.sendCommand(
-            `-break-insert -f ${file}:${bp.line}`
-          );
+          const promise = this.sendCommand(`-break-insert -f ${file}:${bp.line}`);
           bpsPending.push(promise);
           promise.then((record: ResultRecord) => {
             // If this is a conditional breakpoint we must relay the
@@ -624,10 +622,7 @@ export class GDB extends EventEmitter {
             this.breakpoints.get(sourceFile).push(bpInfo.number);
 
             if (bp.condition) {
-              promise = this.sendCommand(
-                `-break-condition ${bpInfo.number} ${bp.condition}`
-              );
-              promise.then((record: ResultRecord) => {
+              this.sendCommand(`-break-condition ${bpInfo.number} ${bp.condition}`).then((record: ResultRecord) => {
                 bpsVerified.push(new Breakpoint(true, bpInfo.line));
               });
             } else {
@@ -844,7 +839,7 @@ export class GDB extends EventEmitter {
           `-stack-list-variables --thread ${this.threadID} --frame ${
             reference - SCOPE_LOCAL - this.threadID
           } --no-frame-filters --simple-values`
-        ).then((record: Record) => {
+        ).then((record: OutputRecord) => {
           const pending: Promise<any>[] = [];
 
           // Ask GDB to create a new variable so we can correctly display nested
@@ -868,7 +863,7 @@ export class GDB extends EventEmitter {
           });
         });
       } else {
-        this.sendCommand(`-data-list-register-values r`).then((record: Record) => {
+        this.sendCommand(`-data-list-register-values r`).then((record: OutputRecord) => {
           resolve(record.getResult('register-values').map(reg => {
             return {
               name: this.registers[reg.number],
@@ -944,7 +939,7 @@ export class GDB extends EventEmitter {
 
   public commandCompletions(text: string, start: number): Promise<CompletionItem[]> {
     return new Promise((resolve, reject) => {
-      this.sendCommand(`-complete "${text}"`).then((record: Record) => {
+      this.sendCommand(`-complete "${text}"`).then((record: OutputRecord) => {
         let items:CompletionItem[] = [];
         record.getResult('matches').forEach((match: string) => {
           items.push(new CompletionItem(match, start));
@@ -957,7 +952,7 @@ export class GDB extends EventEmitter {
 
   public disassemble(address: string): Promise<DebugProtocol.DisassembledInstruction[]> {
     return new Promise((resolve, reject) => {
-      this.sendCommand(`-data-disassemble -a ${address} -- 0`).then((record: Record) => {
+      this.sendCommand(`-data-disassemble -a ${address} -- 0`).then((record: OutputRecord) => {
         const insts = record.getResult('asm_insns');
         let dasm: DebugProtocol.DisassembledInstruction[] = [];
 
@@ -976,7 +971,7 @@ export class GDB extends EventEmitter {
 
   private cacheRegisterNames(): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      this.sendCommand('-data-list-register-names').then((record: Record) => {
+      this.sendCommand('-data-list-register-names').then((record: OutputRecord) => {
         record.getResult('register-names').forEach((reg: string, idx: number) => {
           this.registers[idx] = reg;
         });
