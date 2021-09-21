@@ -328,7 +328,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             variable.value = this.GDB.sanitize(variable.value, false);
           }
 
-          const v: DebugProtocol.Variable = new Variable(variable.name, variable.value, variable.hasChildren ? reference : 0);
+          const v: DebugProtocol.Variable = new Variable(variable.name, variable.value, variable.numberOfChildren ? reference : 0);
           variables.push(v);
         });
 
@@ -388,45 +388,25 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     switch (args.context) {
       case 'repl':
-        const isMICommand = args.expression.startsWith('-');
+        this.GDB.pause().then((wasPaused: boolean) => {
+          const isMICommand = args.expression.startsWith('-');
 
-        if (!this.GDB.isStopped()) {
-          this.GDB.pause(undefined, false).then(() => {
-            // If command begins with a "-", pass through MI syntax untouched
-            if (isMICommand) {
-              this.GDB.sendCommand(args.expression).then((record) => {
-                this.sendEvent(new OutputEvent(record.prettyPrint() + '\n', 'console'));
-
-                // continue execution
-                this.GDB.continue().then(() => {
-                  this.sendResponse(response);
-                });
-              });
-            } else {
-              this.GDB.execUserCmd(args.expression, args.frameId).then(() => {
-                // continue execution
-                this.GDB.continue().then(() => {
-                  this.sendResponse(response);
-                });
-              });
-            }
-          });
-        } else {
-          // TODO: single source paths
           if (isMICommand) {
             this.GDB.sendCommand(args.expression).then((record) => {
               this.sendEvent(new OutputEvent(record.prettyPrint() + '\n', 'console'));
-              this.sendResponse(response);
-            }
-          );
+            });
           } else {
-            this.GDB.execUserCmd(args.expression, args.frameId).then(() => {
-                this.sendResponse(response);
-              }
-            );
+            this.GDB.execUserCmd(args.expression, args.frameId);
           }
-        }
 
+          if (!wasPaused) {
+            this.GDB.continue().then(() => {
+              this.sendResponse(response);
+            });
+          } else {
+            this.sendResponse(response);
+          } 
+        });
         break;
 
       case 'watch':

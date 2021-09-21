@@ -91,6 +91,27 @@ class GDBException {
   }
 }
 
+class GDBVariable {
+  // Source-code variable name
+  name: string;
+
+  // Number of immediate children
+  numberOfChildren: number;
+
+  // Name used by GDB for variable tracking
+  GDBName: string;
+
+  // Short hand representation for non-aggregate types
+  value: string;
+
+  constructor(record: any) {
+    this.name = record.exp;
+    this.numberOfChildren = parseInt(record.numchild);
+    this.GDBName = record.name;
+    this.value = record.value || '';
+  }
+}
+
 export class GDB extends EventEmitter {
   // Default path to MI debugger. If none is specified in the launch config
   // we will fallback to this path
@@ -152,7 +173,7 @@ export class GDB extends EventEmitter {
   private registers: string[] = [];
 
   // Mapping of symbolic variable names to GDB variable references
-  private variables = new Map();
+  private variables = new Map<number, GDBVariable>();
 
   private variableReferenceID = 0;
 
@@ -648,7 +669,6 @@ export class GDB extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.sendCommand('-gdb-set target-async on').then(() => {
         this.sendCommand(`attach ${this.PID}`).then(() => {
-          // TODO: will likely need to clear terminal as well like in launchRequest
           return this.sendCommand('-exec-continue').then(() => {
             resolve(true);
           });
@@ -754,7 +774,11 @@ export class GDB extends EventEmitter {
     });
   }
 
-  private async getVariableChildren(GDBVariableName: string): Promise<any> {
+  private isPseudoVariableChild(child: any): boolean {
+    return !child.type && !child.value;
+  }
+
+  private getVariableChildren(GDBVariableName: string): Promise<any> {
     // Variable expanded, fetch GDB children
     // TODO: hard coding scopes to start at 1000 is not good for scalability -- rethink this
     // TODO: clean this up
@@ -773,21 +797,14 @@ export class GDB extends EventEmitter {
             // child and annotate its consituents with such attribute for
             // special treating by the front-end. Note we could have mulitple
             // such pseudo-levels at a given level
-
-            // TODO: stick this in a utility fcn
-            if (!child[1].type && !child[1].value) {
+            if (this.isPseudoVariableChild(child[1])) {
               const p = this.getVariableChildren(child[1].name);
               pending.push(p);
               p.then(vars => {
                 childrenTemp = new Map([...childrenTemp, ...vars]);
               });
             } else {  
-              const childVar = {
-                name: child[1].exp,
-                hasChildren: parseInt(child[1].numchild),
-                gdbName: child[1].name,
-                value: child[1].value || ''
-              };
+              const childVar = new GDBVariable(child[1]);
 
               // TODO: clean this up
               childrenTemp.set(++this.variableReferenceID, childVar);
@@ -810,7 +827,13 @@ export class GDB extends EventEmitter {
     // we simply solicit an update from GDB for variables already being tracked.
     return new Promise((resolve, reject) => {
       if (reference < SCOPE_LOCAL) {
-        this.getVariableChildren(this.variables.get(reference).gdbName).then(vars => resolve(vars));
+        const gdbVar = this.variables.get(reference);
+
+        if (gdbVar) {
+          this.getVariableChildren(gdbVar.GDBName).then(vars => resolve(vars));
+        } else {
+          resolve([]);
+        }
       } else if (fetchLocal) {
         // TODO: refactor this -- we do not need to refetch everything
         if (this.variables) {
@@ -832,8 +855,8 @@ export class GDB extends EventEmitter {
             pending.push(this.sendCommand(`-var-create - * "${variable.name}"`).then(gdbVariable => {
               this.variables.set(++this.variableReferenceID, {
                 name: variable.name,
-                hasChildren: parseInt(gdbVariable.getResult('numchild')),
-                gdbName: gdbVariable.getResult('name'),
+                numberOfChildren: parseInt(gdbVariable.getResult('numchild')),
+                GDBName: gdbVariable.getResult('name'),
                 value: gdbVariable.getResult('value')
               });
             }));
@@ -890,7 +913,18 @@ export class GDB extends EventEmitter {
       this.handleSIGINT = false;
     }
 
-    return this.sendCommand(`-exec-interrupt ${threadID || ''}`);
+    return new Promise((resolve, reject) => {
+      const wasPaused = this.isStopped();
+
+      if (wasPaused) {
+        resolve(wasPaused);
+      } else {
+        this.sendCommand(`-exec-interrupt ${threadID || ''}`).then(() => {
+          resolve(wasPaused);
+        });
+      }
+    });
+
   }
 
   public quit(attach: boolean): Promise<any> {
