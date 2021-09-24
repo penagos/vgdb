@@ -1,36 +1,20 @@
 // eslint-disable-next-line node/no-extraneous-import
-import {DebugProtocol} from 'vscode-debugprotocol';
+import { DebugProtocol } from 'vscode-debugprotocol';
 import {
+  ContinuedEvent,
   InitializedEvent,
   LoggingDebugSession,
-  TerminatedEvent,
-  StoppedEvent,
-  StackFrame,
-  Thread,
-  ContinuedEvent,
   OutputEvent,
-  Variable,
-  ThreadEvent,
-  CompletionItem
+  StoppedEvent,
+  TerminatedEvent,
+  ThreadEvent
 } from 'vscode-debugadapter';
-import {
-  GDB,
-  EVENT_BREAKPOINT_HIT,
-  EVENT_END_STEPPING_RANGE,
-  EVENT_RUNNING,
-  EVENT_EXITED_NORMALLY,
-  EVENT_FUNCTION_FINISHED,
-  EVENT_OUTPUT,
-  EVENT_SIGNAL,
-  EVENT_PAUSED,
-  EVENT_ERROR,
-  EVENT_ERROR_FATAL,
-  EVENT_THREAD_NEW,
-  SCOPE_LOCAL,
-  SCOPE_REGISTERS
-} from './debuggers/gdb/GDB';
+
 import * as vscode from 'vscode';
-import {OutputChannel, Terminal} from 'vscode';
+import { OutputChannel, Terminal } from 'vscode';
+import { GDBNew } from './debuggers/gdb/GDBNew';
+import { Debugger } from './debuggers/Debugger';
+import { EVENT_ERROR_FATAL, EVENT_OUTPUT, EVENT_RUNNING, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_FUNCTION_FINISHED, EVENT_EXITED_NORMALLY, EVENT_SIGNAL, EVENT_PAUSED, EVENT_ERROR, EVENT_THREAD_NEW } from './debuggers/gdb/GDB';
 
 export enum DebugLoggingLevel {
   OFF = 'off',
@@ -89,28 +73,77 @@ export interface AttachRequestArguments
 // the GDB process (i.e. parsing MI output). The session handles requests and
 // responses with the IDE
 export class DebugSession extends LoggingDebugSession {
-  private Debugger: GDB;
-  private outputChannel: OutputChannel;
-  private terminal: Terminal;
-  private debug: boolean;
+  private debugger: Debugger;
 
-  public constructor(terminal: Terminal, outputChannel: OutputChannel) {
+  constructor(private readonly terminal: Terminal,
+    private readonly outputChannel: OutputChannel) {
     super();
-    this.debug = true;
+  }
 
-    // The outputChannel is to separate debug logging from the adapter
-    // from the output of GDB. We need to clear it on each launch
-    // request to remove stale output from prior runs
-    this.terminal = terminal;
-    this.outputChannel = outputChannel;
-    this.outputChannel.clear();
-    this.Debugger = new GDB(this.outputChannel);
+  /**
+   * Create a new debugger and return all capabilities supported by the debug
+   * adapter (common functionality across all implemented debuggers)
+   */
+  protected async initializeRequest(
+    response: DebugProtocol.InitializeResponse,
+    args: DebugProtocol.InitializeRequestArguments
+  ): Promise<void> {
+    this.debugger = new GDBNew(this.terminal, this.outputChannel);
+    this.bindDebuggerEvents();
+
+    response.body = {
+      supportsEvaluateForHovers: true,
+      supportsSetVariable: true,
+      supportsConfigurationDoneRequest: true,
+      supportsDisassembleRequest: true,
+      supportsSteppingGranularity: true,
+      supportsExceptionInfoRequest: true,
+      supportsCompletionsRequest: this.getSettingValue('enableCommandCompletions'),
+      supportsStepBack: this.getSettingValue('enableReverseDebugging')
+    };
+
+    this.sendResponse(response);
+    this.sendEvent(new InitializedEvent());
+  }
+
+  /**
+   * Launch debugger and setup correct state for the inferior but do NOT start
+   * the actual inferior process. Such process must be started at the end of the
+   * configuration sequence, after breakpoints have been set.
+   */
+  protected async launchRequest(
+    response: DebugProtocol.LaunchResponse,
+    args: LaunchRequestArguments
+  ) {
+    this.debugger.spawn(args).then(() => {
+      this.sendResponse(response);
+    })
+  }
+
+  protected async configurationDoneRequest(
+    response: DebugProtocol.ConfigurationDoneResponse,
+    args: DebugProtocol.ConfigurationDoneArguments
+  ) {
+    this.debugger.launchInferior().then(() => {
+      vscode.commands
+      .executeCommand('workbench.action.terminal.clear')
+      .then(() => {
+        this.sendResponse(response);
+      });
+    })
+  }
+
+  protected setBreakPointsRequest(
+    response: DebugProtocol.SetBreakpointsResponse,
+    args: DebugProtocol.SetBreakpointsArguments
+  ): void {
+    this.debugger.setBreakpoints(args.source.path || '', args.breakpoints || []).then(() => {
+      this.sendResponse(response);
+    });
   }
 
   protected log(text: string): void {
-    if (this.debug) {
-      this.outputChannel.appendLine(text);
-    }
+    this.outputChannel.appendLine(text);
   }
 
   protected error(text: string): void {
@@ -123,31 +156,13 @@ export class DebugSession extends LoggingDebugSession {
     }
   }
 
-  protected launchDebugger(
-    args: AttachRequestArguments | LaunchRequestArguments,
-    response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse
-  ): void {
-    // Only send initialized response once GDB is fully spawned
-    this.Debugger.setCWD(args.cwd);
-    this.Debugger.setDebug(args.debug || DebugLoggingLevel.OFF);
-    this.Debugger.spawn(args, this.terminal).then(() => {
-      // If deferred symbols are to be used, set that here
-      if (args.sharedLibraries !== undefined) {
-        // Since commands are sent in a blocking manner we do not need
-        // to spin on this request before responding to the launchRequest
-        this.Debugger.deferLibraryLoading(args.sharedLibraries);
-      }
-
-      this.sendResponse(response);
-    });
+  private getSettingValue(settingName: string): any {
+    return vscode.workspace.getConfiguration('vgdb').get(settingName);
   }
 
-  protected async initializeRequest(
-    response: DebugProtocol.InitializeResponse,
-    args: DebugProtocol.InitializeRequestArguments
-  ): Promise<void> {
+  private bindDebuggerEvents(): void {
     // Bind error handler for unexpected GDB errors
-    this.Debugger.on(EVENT_ERROR_FATAL, (tid: number) => {
+    this.debugger.on(EVENT_ERROR_FATAL, (tid: number) => {
       this.error(
         'vGDB has encountered a fatal error. Please check the vGDB output channel and create an issue at http://www.github.com/penagos/vgdb/issues'
       );
@@ -155,41 +170,41 @@ export class DebugSession extends LoggingDebugSession {
     });
 
     // Pipe to debug console
-    this.Debugger.on(EVENT_OUTPUT, (text: string) => {
+    this.debugger.on(EVENT_OUTPUT, (text: string) => {
       // Massage GDB output as much as possible
       this.sendEvent(new OutputEvent(text + '\n', 'console'));
     });
 
     // Events triggered by debuggeer
-    this.Debugger.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
+    this.debugger.on(EVENT_RUNNING, (threadID: number, allThreads: boolean) => {
       this.sendEvent(new ContinuedEvent(threadID, allThreads));
     });
 
-    this.Debugger.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
+    this.debugger.on(EVENT_BREAKPOINT_HIT, (threadID: number) => {
       this.sendEvent(new StoppedEvent('breakpoint', threadID));
     });
 
-    this.Debugger.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
+    this.debugger.on(EVENT_END_STEPPING_RANGE, (threadID: number) => {
       this.sendEvent(new StoppedEvent('step', threadID));
     });
 
-    this.Debugger.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
+    this.debugger.on(EVENT_FUNCTION_FINISHED, (threadID: number) => {
       this.sendEvent(new StoppedEvent('step-out', threadID));
     });
 
-    this.Debugger.on(EVENT_EXITED_NORMALLY, () => {
+    this.debugger.on(EVENT_EXITED_NORMALLY, () => {
       this.sendEvent(new TerminatedEvent());
     });
 
-    this.Debugger.on(EVENT_SIGNAL, (threadID: number) => {
+    this.debugger.on(EVENT_SIGNAL, (threadID: number) => {
       this.sendEvent(new StoppedEvent('exception', threadID));
     });
 
-    this.Debugger.on(EVENT_PAUSED, () => {
+    this.debugger.on(EVENT_PAUSED, () => {
       this.sendEvent(new StoppedEvent('pause', 1));
     });
 
-    this.Debugger.on(EVENT_ERROR, (msg: string) => {
+    this.debugger.on(EVENT_ERROR, (msg: string) => {
       // We do not cache the value in the adapter's constructor so
       // that any changes can immediately take effect
       if (vscode.workspace.getConfiguration('vgdb').get('showErrorPopup')) {
@@ -197,308 +212,8 @@ export class DebugSession extends LoggingDebugSession {
       }
     });
 
-    this.Debugger.on(EVENT_THREAD_NEW, (threadID: number) => {
+    this.debugger.on(EVENT_THREAD_NEW, (threadID: number) => {
       this.sendEvent(new ThreadEvent('started', threadID));
-    });
-
-    response.body = response.body || {};
-    response.body.supportsEvaluateForHovers = true;
-    response.body.supportsSetVariable = true;
-    response.body.supportsEvaluateForHovers = true;
-    response.body.supportsConfigurationDoneRequest = true;
-    response.body.supportsDisassembleRequest = true;
-    response.body.supportsSteppingGranularity = true;
-    response.body.supportsExceptionInfoRequest = true;
-    response.body.supportsCompletionsRequest = vscode.workspace.getConfiguration('vgdb').get('enableCommandCompletions');
-    response.body.supportsStepBack = vscode.workspace.getConfiguration('vgdb').get('enableReverseDebugging');
-
-    this.sendResponse(response);
-    this.sendEvent(new InitializedEvent());
-  }
-
-  protected async attachRequest(
-    response: DebugProtocol.AttachResponse,
-    args: AttachRequestArguments
-  ) {
-    this.launchDebugger(args, response);
-  }
-
-  protected async launchRequest(
-    response: DebugProtocol.LaunchResponse,
-    args: LaunchRequestArguments
-  ) {
-    this.launchDebugger(args, response);
-  }
-
-  protected async configurationDoneRequest(
-    response: DebugProtocol.ConfigurationDoneResponse,
-    args: DebugProtocol.ConfigurationDoneArguments
-  ) {
-    // Only send initialized response once GDB is fully spawned
-    if (!this.Debugger.PID) {
-      this.Debugger.startInferior().then(() => {
-        this.sendResponse(response);
-      });
-    } else {
-      this.Debugger.attachInferior().then(() => {
-        this.sendResponse(response);
-      });
-    }
-  }
-
-  protected setBreakPointsRequest(
-    response: DebugProtocol.SetBreakpointsResponse,
-    args: DebugProtocol.SetBreakpointsArguments
-  ): void {
-    this.Debugger.clearBreakpoints(args.source.path).then(() => {
-      this.Debugger.setBreakpoints(
-        args.source.path || '',
-        args.breakpoints || null
-      ).then(bps => {
-        response.body = {
-          breakpoints: bps,
-        };
-        this.sendResponse(response);
-      });
-    });
-  }
-
-  protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-    this.Debugger.getThreads().then((threads: Thread[]) => {
-      response.body = {
-        threads: threads,
-      };
-      this.sendResponse(response);
-    });
-  }
-
-  protected stackTraceRequest(
-    response: DebugProtocol.StackTraceResponse,
-    args: DebugProtocol.StackTraceArguments
-  ): void {
-    this.Debugger.getStack(args.threadId).then((stack: StackFrame[]) => {
-      response.body = {
-        stackFrames: stack,
-        totalFrames: stack.length - 1,
-      };
-      this.sendResponse(response);
-    });
-  }
-
-  protected scopesRequest(
-    response: DebugProtocol.ScopesResponse,
-    args: DebugProtocol.ScopesArguments
-  ): void {
-    const locScope: DebugProtocol.Scope = {
-      name: 'Locals',
-      variablesReference: SCOPE_LOCAL + args.frameId,
-      expensive: false,
-      presentationHint: 'locals'
-    };
-
-    const regScope: DebugProtocol.Scope = {
-      name: 'Registers',
-      variablesReference: SCOPE_REGISTERS,
-      expensive: true,
-      presentationHint: 'registers'
-    };
-
-    response.body = {
-      scopes: [
-        locScope,
-        regScope
-      ],
-    };
-    this.sendResponse(response);
-  }
-
-  protected variablesRequest(
-    response: DebugProtocol.VariablesResponse,
-    args: DebugProtocol.VariablesArguments,
-    request?: DebugProtocol.Request
-  ) {
-    const isLocalScope = args.variablesReference !== SCOPE_REGISTERS;
-    this.Debugger.getVars(args.variablesReference, isLocalScope).then(
-      (vars: any[]) => {
-        const variables: Variable[] = [];
-
-        vars.forEach((variable, reference:number) => {
-          // If this is a string strip out special chars
-          if (isLocalScope && typeof variable.value === 'string') {
-            variable.value = this.Debugger.sanitize(variable.value, false);
-          }
-
-          const v: DebugProtocol.Variable = new Variable(variable.name, variable.value, variable.numberOfChildren ? reference : 0);
-          variables.push(v);
-        });
-
-        response.body = {
-          variables: variables,
-        };
-
-        this.sendResponse(response);
-      }
-    );
-  }
-
-  protected nextRequest(
-    response: DebugProtocol.NextResponse,
-    args: DebugProtocol.NextArguments
-  ): void {
-    this.Debugger.next(args.threadId, args.granularity || '').then(() => {
-      this.sendResponse(response);
-    });
-  }
-
-  protected stepInRequest(
-    response: DebugProtocol.StepInResponse,
-    args: DebugProtocol.StepInArguments
-  ): void {
-    this.Debugger.stepIn(args.threadId).then(() => {
-      this.sendResponse(response);
-    });
-  }
-
-  protected stepOutRequest(
-    response: DebugProtocol.StepOutResponse,
-    args: DebugProtocol.StepOutArguments
-  ): void {
-    this.Debugger.stepOut(args.threadId).then(() => {
-      this.sendResponse(response);
-    });
-  }
-
-  protected continueRequest(
-    response: DebugProtocol.ContinueResponse,
-    args: DebugProtocol.ContinueArguments
-  ): void {
-    this.Debugger.continue(args.threadId).then(() => {
-      this.sendResponse(response);
-    });
-  }
-
-  protected evaluateRequest(
-    response: DebugProtocol.EvaluateResponse,
-    args: DebugProtocol.EvaluateArguments
-  ): void {
-    // GDB enumerates frames starting from 0
-    if (args.frameId) {
-      --args.frameId;
-    }
-
-    switch (args.context) {
-      case 'repl':
-        this.Debugger.pause().then((wasPaused: boolean) => {
-          const isMICommand = args.expression.startsWith('-');
-
-          if (isMICommand) {
-            this.Debugger.sendCommand(args.expression).then((record) => {
-              this.sendEvent(new OutputEvent(record.prettyPrint() + '\n', 'console'));
-            });
-          } else {
-            this.Debugger.execUserCmd(args.expression, args.frameId);
-          }
-
-          if (!wasPaused) {
-            this.Debugger.continue().then(() => {
-              this.sendResponse(response);
-            });
-          } else {
-            this.sendResponse(response);
-          } 
-        });
-        break;
-
-      case 'watch':
-      case 'hover':
-        // TODO: hook up variable references
-        this.Debugger.evaluateExpr(args.expression, args.frameId).then(
-          (result: any) => {
-            if (result) {
-              response.body = {
-                result: result,
-                variablesReference: 0,
-              };
-              this.sendResponse(response);
-            }
-          }
-        );
-        break;
-    }
-  }
-
-  protected pauseRequest(
-    response: DebugProtocol.PauseResponse,
-    args: DebugProtocol.PauseArguments
-  ): void {
-    this.Debugger.pause(args.threadId).then(() => {
-      this.sendResponse(response);
-    });
-  }
-
-  protected disconnectRequest(
-    response: DebugProtocol.DisconnectResponse,
-    args: DebugProtocol.DisconnectArguments
-  ): void {
-    // If this was an attach request do not kill the inferior
-    this.Debugger.quit(args.terminateDebuggee === true);
-
-    // We do not need to wait until GDB quits
-    this.sendResponse(response);
-  }
-
-  protected setVariableRequest(
-    response: DebugProtocol.SetVariableResponse,
-    args: DebugProtocol.SetVariableArguments
-  ): void {
-    this.Debugger.updateVar(args.name, args.value).then(() => {
-      // TODO: fetch actual value from GDB
-      response.body = {
-        value: args.value,
-      };
-
-      this.sendResponse(response);
-    });
-  }
-
-  protected completionsRequest(
-    response: DebugProtocol.CompletionsResponse,
-    args: DebugProtocol.CompletionsArguments
-  ): void {
-    this.Debugger.commandCompletions(args.text, args.column).then((completions: CompletionItem[]) => {
-      response.body = {
-        targets: completions
-      };
-
-      this.sendResponse(response);
-    });
-  }
-
-  protected disassembleRequest(
-    response: DebugProtocol.DisassembleResponse,
-    args: DebugProtocol.DisassembleArguments
-  ): void {
-    this.Debugger.disassemble(args.memoryReference).then(insts => {
-      response.body = {
-        instructions: insts
-      }
-  
-      this.sendResponse(response);
-    });
-  }
-
-  protected exceptionInfoRequest(
-    response: DebugProtocol.ExceptionInfoResponse,
-    args: DebugProtocol.ExceptionInfoArguments
-  ): void {
-    const exception = this.Debugger.getLastException();
-
-    response.body = {
-      exceptionId: exception.name,
-      breakMode: 'unhandled',
-      description: exception.location
-    };
-
-    this.sendResponse(response);
+    });    
   }
 }
