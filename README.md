@@ -1,5 +1,7 @@
 # vGDB | Visual Studio Code GDB Debug Adapter
 
+**v 0.1.0.0 os actively being developed and is slated for release in mid October with disassembly support, register support and numerous bug fixes**
+
 A native typescript implementation of a debug adapter for GDB for use in Visual Studio Code. Tested on Linux, Windows support is untested. **This extension is under active development**
 
 ## Features
