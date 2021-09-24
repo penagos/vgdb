@@ -1,19 +1,22 @@
 // eslint-disable-next-line node/no-extraneous-import
 import { DebugProtocol } from 'vscode-debugprotocol';
 import {
+  CompletionItem,
   ContinuedEvent,
   InitializedEvent,
   LoggingDebugSession,
   OutputEvent,
+  StackFrame,
   StoppedEvent,
   TerminatedEvent,
+  Thread,
   ThreadEvent
 } from 'vscode-debugadapter';
 
 import * as vscode from 'vscode';
 import { OutputChannel, Terminal } from 'vscode';
 import { GDBNew } from './debuggers/gdb/GDBNew';
-import { Debugger } from './debuggers/Debugger';
+import { Debugger, SCOPE_LOCAL, SCOPE_REGISTERS } from './debuggers/Debugger';
 import { EVENT_ERROR_FATAL, EVENT_OUTPUT, EVENT_RUNNING, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_FUNCTION_FINISHED, EVENT_EXITED_NORMALLY, EVENT_SIGNAL, EVENT_PAUSED, EVENT_ERROR, EVENT_THREAD_NEW } from './debuggers/gdb/GDB';
 
 export enum DebugLoggingLevel {
@@ -138,6 +141,148 @@ export class DebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetBreakpointsArguments
   ): void {
     this.debugger.setBreakpoints(args.source.path || '', args.breakpoints || []).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
+    this.debugger.getThreads().then((threads: Thread[]) => {
+      response.body = {
+        threads: threads,
+      };
+      this.sendResponse(response);
+    });
+  }
+
+  protected stackTraceRequest(
+    response: DebugProtocol.StackTraceResponse,
+    args: DebugProtocol.StackTraceArguments
+  ): void {
+    this.debugger.getStackTrace(args.threadId).then((stack: StackFrame[]) => {
+      response.body = {
+        stackFrames: stack,
+        totalFrames: stack.length - 1,
+      };
+      this.sendResponse(response);
+    });
+  }
+
+  protected scopesRequest(
+    response: DebugProtocol.ScopesResponse,
+    args: DebugProtocol.ScopesArguments
+  ): void {
+    response.body = {
+      scopes: [
+        {
+          name: 'Locals',
+          variablesReference: SCOPE_LOCAL + args.frameId,
+          expensive: false,
+          presentationHint: 'locals'
+        },
+        {
+          name: 'Registers',
+          variablesReference: SCOPE_REGISTERS,
+          expensive: true,
+          presentationHint: 'registers'
+        }
+      ]
+    };
+    this.sendResponse(response);
+  }
+
+  protected variablesRequest(
+    response: DebugProtocol.VariablesResponse,
+    args: DebugProtocol.VariablesArguments,
+    request?: DebugProtocol.Request
+  ) {
+    // TODO
+    this.sendResponse(response);
+  }
+
+  protected nextRequest(
+    response: DebugProtocol.NextResponse,
+    args: DebugProtocol.NextArguments
+  ): void {
+    this.debugger.next(args.threadId, args.granularity || '').then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected stepInRequest(
+    response: DebugProtocol.StepInResponse,
+    args: DebugProtocol.StepInArguments
+  ): void {
+    this.debugger.stepIn(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected stepOutRequest(
+    response: DebugProtocol.StepOutResponse,
+    args: DebugProtocol.StepOutArguments
+  ): void {
+    this.debugger.stepOut(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected continueRequest(
+    response: DebugProtocol.ContinueResponse,
+    args: DebugProtocol.ContinueArguments
+  ): void {
+    this.debugger.continue(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected pauseRequest(
+    response: DebugProtocol.PauseResponse,
+    args: DebugProtocol.PauseArguments
+  ): void {
+    this.debugger.pause(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected disassembleRequest(
+    response: DebugProtocol.DisassembleResponse,
+    args: DebugProtocol.DisassembleArguments
+  ): void {
+    this.debugger.getDisassembly(args.memoryReference).then(insts => {
+      response.body = {
+        instructions: insts
+      }
+  
+      this.sendResponse(response);
+    });
+  }
+
+  protected exceptionInfoRequest(
+    response: DebugProtocol.ExceptionInfoResponse,
+    args: DebugProtocol.ExceptionInfoArguments
+  ): void {
+    const exception = this.debugger.getLastException();
+
+    if (exception) {
+      response.body = {
+        exceptionId: exception.name,
+        breakMode: 'unhandled',
+        description: exception.description
+      };
+    }
+
+    this.sendResponse(response);
+  }
+
+  protected completionsRequest(
+    response: DebugProtocol.CompletionsResponse,
+    args: DebugProtocol.CompletionsArguments
+  ): void {
+    this.debugger.getCommandCompletions(args.text).then((completions: CompletionItem[]) => {
+      response.body = {
+        targets: completions
+      };
+
       this.sendResponse(response);
     });
   }

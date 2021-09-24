@@ -1,13 +1,26 @@
 import path = require("path");
-import { Breakpoint } from "vscode-debugadapter";
-import { Debugger, DebuggerVariable } from "../Debugger";
-import { EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_RUNNING, EVENT_SIGNAL, EVENT_SOLIB_ADD, EVENT_SOLIB_LOADED, EVENT_THREAD_NEW } from "./GDB";
+import { CompletionItem } from "vscode";
+import { Breakpoint, Source, StackFrame, Thread } from "vscode-debugadapter";
+import {DebugProtocol} from 'vscode-debugprotocol';
+import { Debugger, DebuggerException, DebuggerVariable } from "../Debugger";
+import { EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_ERROR_FATAL, EVENT_EXITED_NORMALLY, EVENT_FUNCTION_FINISHED, EVENT_OUTPUT, EVENT_RUNNING, EVENT_SIGNAL, EVENT_SOLIB_ADD, EVENT_SOLIB_LOADED, EVENT_THREAD_NEW } from "./GDB";
 import { AsyncRecord, AsyncRecordType } from "./parser/AsyncRecord";
 import { MIParser, RUNNING, STOPPED } from "./parser/MIParser";
 import { OutputRecord } from "./parser/OutputRecord";
 import { ResultRecord } from "./parser/ResultRecord";
 import { StreamRecord } from "./parser/StreamRecord";
 
+class GDBException extends DebuggerException {
+    name: string;
+    location: string;
+  
+    constructor(record: OutputRecord) {
+        super();
+        const frame = record.getResult('frame');
+        this.name = `${record.getResult('signal-meaning')} (${record.getResult('signal-name')})`,
+        this.location = `${frame.addr} in ${frame.func} at ${frame.file}:${frame.line}`
+    }
+}
 export class GDBNew extends Debugger { 
     // Default path to MI debugger. If none is specified in the launch config
     // we will fallback to this path
@@ -67,21 +80,8 @@ export class GDBNew extends Debugger {
                     if ((record = this.parser.parse(line))) {
                         this.handleParsedResult(record);
                     }
-                        
-                        /*
-                        // Minimize the amount of logging
-                        if (
-                            record.constructor === StreamRecord ||
-                            this.debug === DebugLoggingLevel.VERBOSE
-                            ) {
-                                this.emit(
-                                    EVENT_OUTPUT,
-                                    this.sanitize(record.prettyPrint(), true)
-                                    );
-                                }
-                            }*/
                 } catch (error: any) {
-                    //this.emit(EVENT_ERROR_FATAL);
+                    this.emit(EVENT_ERROR_FATAL);
                 }
             });
         }
@@ -105,6 +105,7 @@ export class GDBNew extends Debugger {
 
     private handleStreamRecord(record: StreamRecord) {
         // Forward raw GDB output to debug console
+        this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true));
     }
 
     private handleResultRecord(record: ResultRecord) {
@@ -171,7 +172,8 @@ export class GDBNew extends Debugger {
                         break;
 
                         case EVENT_SIGNAL:
-                            // TODO
+                            this.lastException = new GDBException(record);
+                            this.emit(EVENT_SIGNAL, this.threadID);
                         break;
 
                         case EVENT_SOLIB_ADD:
@@ -240,23 +242,79 @@ export class GDBNew extends Debugger {
     }
     
     public continue(threadID?: number): Promise<any> {
-        throw new Error("Method not implemented.");
+        if (threadID) {
+            return this.sendCommand(`-exec-continue --thread ${threadID}`);
+        } else {
+            return this.sendCommand('-exec-continue');
+        }
     }
     
     public getStackTrace(threadID: number): Promise<any> {
-        throw new Error("Method not implemented.");
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-stack-list-frames --thread ${threadID}`).then((record: ResultRecord) => {
+                const stackFinal: DebugProtocol.StackFrame[] = [];
+                record.getResult('stack').forEach((frame: any) => {
+                    frame = frame[1];
+      
+                    let sf:DebugProtocol.StackFrame = new StackFrame(
+                        threadID + parseInt(frame.level),
+                        frame.func,
+                        new Source(frame.file, frame.fullname),
+                        parseInt(frame.line)
+                    );
+      
+                    sf.instructionPointerReference = frame.addr;
+                    stackFinal.push(sf);
+                });
+      
+                resolve(stackFinal);
+            });
+        });
     }
     
-    public getCommandCompletions(command: number): Promise<any> {
-        throw new Error("Method not implemented.");
+    public getCommandCompletions(command: string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-complete "${command}"`).then((record: OutputRecord) => {
+                let items:CompletionItem[] = [];
+                record.getResult('matches').forEach((match: string) => {
+                    items.push(new CompletionItem(match, 0));
+                });
+        
+                resolve(items);
+            });
+        });
     }
     
     public getDisassembly(memoryAddress: string): Promise<any> {
-        throw new Error("Method not implemented.");
+        return new Promise((resolve, reject) => {
+            this.sendCommand(`-data-disassemble -a ${memoryAddress} -- 0`).then((record: OutputRecord) => {
+                const insts = record.getResult('asm_insns');
+                let dasm: DebugProtocol.DisassembledInstruction[] = [];
+        
+                insts.forEach(inst => {
+                    const instDasm: DebugProtocol.DisassembledInstruction = {
+                    address: inst.address,
+                    instruction: inst.inst
+                    };
+        
+                    dasm.push(instDasm);
+                });
+                resolve(dasm);
+            });
+        });
     }
     
     public getThreads(): Promise<any> {
-        throw new Error("Method not implemented.");
+        return new Promise((resolve, reject) => {
+            this.sendCommand('-thread-info').then((record: ResultRecord) => {
+                const threadsResult: Thread[] = [];
+                record.getResult('threads').forEach((thread: any) => {
+                    threadsResult.push(new Thread(parseInt(thread.id), thread.name));
+                });
+        
+                resolve(threadsResult);
+            });
+        });
     }
     
     public getVariables(referenceID: number): Promise<any> {
@@ -264,11 +322,26 @@ export class GDBNew extends Debugger {
     }
     
     public next(threadID: number, granularity: string): Promise<any> {
-        throw new Error("Method not implemented.");
+        if (granularity === 'instruction') {
+            return this.sendCommand(`-exec-next-instruction --thread ${threadID}`);
+        } else {
+            // Treat a line as being synonymous with a statement
+            return this.sendCommand(`-exec-next --thread ${threadID}`);
+        }
     }
     
     public pause(threadID: number): Promise<any> {
-        throw new Error("Method not implemented.");
+        return new Promise((resolve, reject) => {
+            const wasPaused = this.isStopped();
+      
+            if (wasPaused) {
+              resolve(wasPaused);
+            } else {
+              this.sendCommand(`-exec-interrupt ${threadID || ''}`).then(() => {
+                resolve(wasPaused);
+              });
+            }
+          });
     }
     
     public sendCommand(command: string): Promise<any> {
@@ -322,11 +395,11 @@ export class GDBNew extends Debugger {
     }
     
     public stepIn(threadID: number): Promise<any> {
-        throw new Error("Method not implemented.");
+        return this.sendCommand(`-exec-step --thread ${threadID}`);
     }
     
     public stepOut(threadID: number): Promise<any> {
-        throw new Error("Method not implemented.");
+        return this.sendCommand(`-exec-finish --thread ${threadID}`);
     }
     
     public startInferior(): Promise<any> {

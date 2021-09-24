@@ -6,7 +6,9 @@ import * as ts from 'tail-stream';
 import { OutputChannel, Terminal } from "vscode";
 import { AttachRequestArguments, LaunchRequestArguments } from "../DebugSession";
 
-export class DebuggerException {
+export const SCOPE_LOCAL = 100000;
+export const SCOPE_REGISTERS = 200000;
+export abstract class DebuggerException {
     public name: string;
     public description: string;
 }
@@ -81,10 +83,9 @@ export abstract class Debugger extends EventEmitter {
     // Filepaths to input and output pipes used for IPC with debugger process
     protected inferiorInputFileName = '';
     protected inferiorOutputFileName = '';
-    
-    // Output buffering for stdout pipe
-    //private stdoutOutputBuffer = '';
-    
+
+    protected lastException: DebuggerException | null = null;
+
     // IO handles to actual pipes. The input handle is an actual FIFO handle
     // while the output handle is a normal fd
     protected inferiorInputHandle: WriteStream;
@@ -106,11 +107,15 @@ export abstract class Debugger extends EventEmitter {
         return this.runStartupCommands();
     }
 
+    public getLastException(): DebuggerException | null {
+        return this.lastException;
+    }
+
     public abstract attachInferior(): Promise<any>;
     public abstract clearBreakpoints(fileName: string): Promise<any>;
     public abstract continue(threadID?: number): Promise<any>;
     public abstract getStackTrace(threadID: number): Promise<any>;
-    public abstract getCommandCompletions(command: number): Promise<any>;
+    public abstract getCommandCompletions(command: string): Promise<any>;
     public abstract getDisassembly(memoryAddress: string): Promise<any>;
     public abstract getThreads(): Promise<any>;
     public abstract getVariables(referenceID: number): Promise<any>;
@@ -130,8 +135,32 @@ export abstract class Debugger extends EventEmitter {
     protected abstract handleInferiorOutput(data: any): void;
     protected abstract handlePostDebuggerStartup(): Promise<any>;
 
+    protected isStopped(): boolean {
+        return this.threadID === -1;
+    }
+
     protected log(text: string) {
         this.outputChannel.appendLine(text);
+    }
+
+    public sanitize(text: string, MI: boolean): string {
+        text = (text || '')
+          .replace(/&"/g, '')
+          .replace(/\\n/g, '')
+          .replace(/\\r/g, '')
+          .replace(/\\t/g, '\t')
+          .replace(/\\v/g, '\v')
+          .replace(/\\"/g, '"')
+          .replace(/\\'/g, "'")
+          .replace(/\\\\/g, '\\');
+    
+        // If we are sanitizing MI output there are additional things we need
+        // to strip out
+        if (MI) {
+          text = text.replace(/^~"[0-9]*/g, '').replace(/"$/g, '');
+        }
+    
+        return text;
     }
 
     protected getNormalizedFileName(fileName: string): string {
