@@ -3,7 +3,13 @@ import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
 import {DebugProtocol} from 'vscode-debugprotocol';
-import {Debugger, DebuggerException, DebuggerVariable} from '../Debugger';
+import {
+  Debugger,
+  DebuggerException,
+  DebuggerVariable,
+  SCOPE_LOCAL,
+  SCOPE_REGISTERS,
+} from '../Debugger';
 import {
   EVENT_BREAKPOINT_HIT,
   EVENT_END_STEPPING_RANGE,
@@ -340,8 +346,54 @@ export class GDBNew extends Debugger {
     });
   }
 
+  /**
+   * This is invoked for requesting all variables in all scopes. To distinguish
+   * how we query the debugger, rely on artifically large scope identifiers
+   */
   public getVariables(referenceID: number): Promise<any> {
-    throw new Error('Method not implemented.');
+    return new Promise(resolve => {
+      if (referenceID < SCOPE_LOCAL) {
+        // Fetch children variables for an existing variable
+      } else if (referenceID < SCOPE_REGISTERS) {
+        // Fetch root level locals
+        this.clearDebuggerVariables().then(() => {
+          this.sendCommand(
+            `-stack-list-variables --thread ${this.threadID} --frame ${
+              referenceID - SCOPE_LOCAL - this.threadID
+            } --no-frame-filters --simple-values`
+          ).then((record: OutputRecord) => {
+            const pending: Promise<void>[] = [];
+
+            // Ask GDB to create a new variable so we can correctly display nested
+            // variables via reference IDs. When execution is resumed, delete all
+            // temporarily created variables to avoid polluting future breaks
+            record.getResult('variables').forEach(variable => {
+              pending.push(
+                this.sendCommand(`-var-create - * "${variable.name}"`).then(
+                  gdbVariable => {
+                    this.variables.set(this.variables.size + 1, {
+                      name: variable.name,
+                      numberOfChildren: parseInt(
+                        gdbVariable.getResult('numchild')
+                      ),
+                      referenceID: this.variables.size + 1,
+                      value: gdbVariable.getResult('value'),
+                    });
+                  }
+                )
+              );
+            });
+
+            Promise.all(pending).then(() => {
+              // Resolve outer promise once all prior promises have completed
+              resolve(this.variables);
+            });
+          });
+        });
+      } else {
+        // Fetch registers
+      }
+    });
   }
 
   public next(threadID: number, granularity: string): Promise<OutputRecord> {
@@ -407,9 +459,11 @@ export class GDBNew extends Debugger {
       breakpoints.forEach(breakpoint => {
         const breakpointCommand = `-break-insert -f ${fileName}:${breakpoint.line}`;
         breakpointsPending.push(
-          this.sendCommand(breakpointCommand).then(() => {
-            // TODO hook up actual verified state
-            breakpointsConfirmed.push(new Breakpoint(true, 1));
+          this.sendCommand(breakpointCommand).then((breakpoint: any) => {
+            const bkpt = breakpoint.getResult('bkpt');
+            breakpointsConfirmed.push(
+              new Breakpoint(!bkpt.pending, bkpt.line || undefined)
+            );
           })
         );
       });

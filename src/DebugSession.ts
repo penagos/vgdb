@@ -213,8 +213,9 @@ export class DebugSession extends LoggingDebugSession {
     args: DebugProtocol.VariablesArguments,
     request?: DebugProtocol.Request
   ) {
-    // TODO
-    this.sendResponse(response);
+    this.debugger.getVariables(args.variablesReference).then((vars: any) => {
+      this.sendResponse(response);
+    });
   }
 
   protected nextRequest(
