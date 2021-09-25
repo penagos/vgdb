@@ -34,12 +34,18 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./src",
-    "watch": "tsc -watch -p ./src"
+    "watch": "tsc -watch -p ./src",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
   },
   "dependencies": {
     "await-notify": "1.0.1",
-    "vscode-debugadapter": "^1.49.0",
-    "tail-stream": "^0.3.4"
+    "tail-stream": "^0.3.4",
+    "vscode-debugadapter": "^1.49.0"
   },
   "devDependencies": {
     "@types/glob": "^7.1.4",
@@ -54,7 +60,8 @@
     "ts-loader": "^8.1.0",
     "typescript": "^4.3.5",
     "vsce": "^1.96.1",
-    "vscode-debugadapter-testsupport": "^1.49.0"
+    "vscode-debugadapter-testsupport": "^1.49.0",
+    "gts": "^3.1.0"
   },
   "main": "./out/extension",
   "activationEvents": [

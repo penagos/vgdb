@@ -1,5 +1,5 @@
 // eslint-disable-next-line node/no-extraneous-import
-import { DebugProtocol } from 'vscode-debugprotocol';
+import {DebugProtocol} from 'vscode-debugprotocol';
 import {
   CompletionItem,
   ContinuedEvent,
@@ -10,14 +10,26 @@ import {
   StoppedEvent,
   TerminatedEvent,
   Thread,
-  ThreadEvent
+  ThreadEvent,
 } from 'vscode-debugadapter';
 
 import * as vscode from 'vscode';
-import { OutputChannel, Terminal } from 'vscode';
-import { GDBNew } from './debuggers/gdb/GDBNew';
-import { Debugger, SCOPE_LOCAL, SCOPE_REGISTERS } from './debuggers/Debugger';
-import { EVENT_ERROR_FATAL, EVENT_OUTPUT, EVENT_RUNNING, EVENT_BREAKPOINT_HIT, EVENT_END_STEPPING_RANGE, EVENT_FUNCTION_FINISHED, EVENT_EXITED_NORMALLY, EVENT_SIGNAL, EVENT_PAUSED, EVENT_ERROR, EVENT_THREAD_NEW } from './debuggers/gdb/GDB';
+import {OutputChannel, Terminal} from 'vscode';
+import {GDBNew} from './debuggers/gdb/GDBNew';
+import {Debugger, SCOPE_LOCAL, SCOPE_REGISTERS} from './debuggers/Debugger';
+import {
+  EVENT_ERROR_FATAL,
+  EVENT_OUTPUT,
+  EVENT_RUNNING,
+  EVENT_BREAKPOINT_HIT,
+  EVENT_END_STEPPING_RANGE,
+  EVENT_FUNCTION_FINISHED,
+  EVENT_EXITED_NORMALLY,
+  EVENT_SIGNAL,
+  EVENT_PAUSED,
+  EVENT_ERROR,
+  EVENT_THREAD_NEW,
+} from './debuggers/gdb/GDB';
 
 export enum DebugLoggingLevel {
   OFF = 'off',
@@ -78,8 +90,10 @@ export interface AttachRequestArguments
 export class DebugSession extends LoggingDebugSession {
   private debugger: Debugger;
 
-  constructor(private readonly terminal: Terminal,
-    private readonly outputChannel: OutputChannel) {
+  constructor(
+    private readonly terminal: Terminal,
+    private readonly outputChannel: OutputChannel
+  ) {
     super();
   }
 
@@ -101,8 +115,10 @@ export class DebugSession extends LoggingDebugSession {
       supportsDisassembleRequest: true,
       supportsSteppingGranularity: true,
       supportsExceptionInfoRequest: true,
-      supportsCompletionsRequest: this.getSettingValue('enableCommandCompletions'),
-      supportsStepBack: this.getSettingValue('enableReverseDebugging')
+      supportsCompletionsRequest: this.getSettingValue(
+        'enableCommandCompletions'
+      ),
+      supportsStepBack: this.getSettingValue('enableReverseDebugging'),
     };
 
     this.sendResponse(response);
@@ -120,7 +136,7 @@ export class DebugSession extends LoggingDebugSession {
   ) {
     this.debugger.spawn(args).then(() => {
       this.sendResponse(response);
-    })
+    });
   }
 
   protected async configurationDoneRequest(
@@ -129,20 +145,22 @@ export class DebugSession extends LoggingDebugSession {
   ) {
     this.debugger.launchInferior().then(() => {
       vscode.commands
-      .executeCommand('workbench.action.terminal.clear')
-      .then(() => {
-        this.sendResponse(response);
-      });
-    })
+        .executeCommand('workbench.action.terminal.clear')
+        .then(() => {
+          this.sendResponse(response);
+        });
+    });
   }
 
   protected setBreakPointsRequest(
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments
   ): void {
-    this.debugger.setBreakpoints(args.source.path || '', args.breakpoints || []).then(() => {
-      this.sendResponse(response);
-    });
+    this.debugger
+      .setBreakpoints(args.source.path || '', args.breakpoints || [])
+      .then(() => {
+        this.sendResponse(response);
+      });
   }
 
   protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
@@ -177,15 +195,15 @@ export class DebugSession extends LoggingDebugSession {
           name: 'Locals',
           variablesReference: SCOPE_LOCAL + args.frameId,
           expensive: false,
-          presentationHint: 'locals'
+          presentationHint: 'locals',
         },
         {
           name: 'Registers',
           variablesReference: SCOPE_REGISTERS,
           expensive: true,
-          presentationHint: 'registers'
-        }
-      ]
+          presentationHint: 'registers',
+        },
+      ],
     };
     this.sendResponse(response);
   }
@@ -250,9 +268,9 @@ export class DebugSession extends LoggingDebugSession {
   ): void {
     this.debugger.getDisassembly(args.memoryReference).then(insts => {
       response.body = {
-        instructions: insts
-      }
-  
+        instructions: insts,
+      };
+
       this.sendResponse(response);
     });
   }
@@ -267,7 +285,7 @@ export class DebugSession extends LoggingDebugSession {
       response.body = {
         exceptionId: exception.name,
         breakMode: 'unhandled',
-        description: exception.description
+        description: exception.description,
       };
     }
 
@@ -278,13 +296,15 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.CompletionsResponse,
     args: DebugProtocol.CompletionsArguments
   ): void {
-    this.debugger.getCommandCompletions(args.text).then((completions: CompletionItem[]) => {
-      response.body = {
-        targets: completions
-      };
+    this.debugger
+      .getCommandCompletions(args.text)
+      .then((completions: CompletionItem[]) => {
+        response.body = {
+          targets: completions,
+        };
 
-      this.sendResponse(response);
-    });
+        this.sendResponse(response);
+      });
   }
 
   protected log(text: string): void {
@@ -359,6 +379,6 @@ export class DebugSession extends LoggingDebugSession {
 
     this.debugger.on(EVENT_THREAD_NEW, (threadID: number) => {
       this.sendEvent(new ThreadEvent('started', threadID));
-    });    
+    });
   }
 }
