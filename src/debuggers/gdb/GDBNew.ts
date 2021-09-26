@@ -1,3 +1,4 @@
+import {resolve} from 'path';
 import path = require('path');
 import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
@@ -13,6 +14,7 @@ import {
 import {
   EVENT_BREAKPOINT_HIT,
   EVENT_END_STEPPING_RANGE,
+  EVENT_ERROR,
   EVENT_ERROR_FATAL,
   EVENT_EXITED_NORMALLY,
   EVENT_FUNCTION_FINISHED,
@@ -24,7 +26,7 @@ import {
   EVENT_THREAD_NEW,
 } from './GDB';
 import {AsyncRecord, AsyncRecordType} from './parser/AsyncRecord';
-import {MIParser, RUNNING, STOPPED} from './parser/MIParser';
+import {ERROR, MIParser, RUNNING, STOPPED} from './parser/MIParser';
 import {OutputRecord} from './parser/OutputRecord';
 import {ResultRecord} from './parser/ResultRecord';
 import {StreamRecord} from './parser/StreamRecord';
@@ -350,10 +352,45 @@ export class GDBNew extends Debugger {
    * This is invoked for requesting all variables in all scopes. To distinguish
    * how we query the debugger, rely on artifically large scope identifiers
    */
-  public getVariables(referenceID: number): Promise<any> {
+  public getVariables(
+    referenceID: number
+  ): Promise<Map<number, DebuggerVariable>> {
+    const getVariableChildren = (
+      variableName: string
+    ): Promise<Map<number, DebuggerVariable>> => {
+      return new Promise(resolve => {
+        this.sendCommand(
+          `-var-list-children --simple-values "${variableName}"`
+        ).then(children => {
+          const childrenVariables = new Map();
+
+          children.getResult('children').forEach(child => {
+            // Check to see if this is a pseudo child on an aggregate type
+            // such as private, public, protected, etc. If so, traverse into
+            // child and annotate its consituents with such attribute for
+            // special treating by the front-end. Note we could have mulitple
+            // such pseudo-levels at a given level
+          });
+
+          resolve(childrenVariables);
+        });
+      });
+    };
+
     return new Promise(resolve => {
       if (referenceID < SCOPE_LOCAL) {
         // Fetch children variables for an existing variable
+        const variable = this.variables.get(referenceID);
+
+        if (variable) {
+          getVariableChildren(variable.name).then(variables =>
+            resolve(variables)
+          );
+        } else {
+          // We should never hit this branch as we would never have requested
+          // additional information for such variable referenceID
+          resolve(new Map());
+        }
       } else if (referenceID < SCOPE_REGISTERS) {
         // Fetch root level locals
         this.clearDebuggerVariables().then(() => {
@@ -405,15 +442,13 @@ export class GDBNew extends Debugger {
     }
   }
 
-  public pause(threadID: number): Promise<boolean> {
+  public pause(threadID?: number): Promise<boolean> {
     return new Promise(resolve => {
-      const wasPaused = this.isStopped();
-
-      if (wasPaused) {
-        resolve(wasPaused);
+      if (this.isStopped()) {
+        resolve(true);
       } else {
         this.sendCommand(`-exec-interrupt ${threadID || ''}`).then(() => {
-          resolve(wasPaused);
+          resolve(false);
         });
       }
     });
@@ -432,8 +467,38 @@ export class GDBNew extends Debugger {
     });
   }
 
-  public sendUserCommand(command: string): Promise<any> {
-    throw new Error('Method not implemented.');
+  public sendUserCommand(
+    command: string,
+    frameID?: number
+  ): Promise<ResultRecord> {
+    return new Promise(resolve => {
+      let cmd = '-interpreter-exec';
+
+      if (frameID) {
+        // "normalize" frameID with threadID
+        frameID = frameID - this.threadID + 1;
+        cmd = `${cmd} --frame ${frameID} --thread ${this.threadID}`;
+      }
+
+      // Escape any quotes in user input
+      cmd = `${cmd} console "${this.escapeQuotes(command)}"`;
+
+      this.sendCommand(cmd).then((record: ResultRecord) => {
+        // If an error has resulted, also send an error event to show it to the user
+        if (record.getClass() === ERROR) {
+          this.emit(
+            EVENT_ERROR,
+            this.escapeEscapeCharacters(record.getResult('msg'))
+          );
+        }
+
+        // TODO: if this was a stack navigation command, update the callstack
+        // with the correct newly selected stackframe. Currently, the debug
+        // adapter protocol does not support such behavior. See:
+        // https://github.com/microsoft/debug-adapter-protocol/issues/118
+        resolve(record);
+      });
+    });
   }
 
   public setBreakpoints(
@@ -455,16 +520,20 @@ export class GDBNew extends Debugger {
       // the breakpoint being set, if the breakpoint has been bound to a source
       // location, mark the breakpoint as being verified. Further, irregardless
       // of whether or not a breakpoint has been bound to source, modify break
-      // conditions if/when applicable
+      // conditions if/when applicable. Note that since we issue commands sequentially
+      // and the debugger will resolve commands in order, we fulfill the requirement
+      // that breakpoints be returned in the same order requested
       breakpoints.forEach(breakpoint => {
         const breakpointCommand = `-break-insert -f ${fileName}:${breakpoint.line}`;
         breakpointsPending.push(
-          this.sendCommand(breakpointCommand).then((breakpoint: any) => {
-            const bkpt = breakpoint.getResult('bkpt');
-            breakpointsConfirmed.push(
-              new Breakpoint(!bkpt.pending, bkpt.line || undefined)
-            );
-          })
+          this.sendCommand(breakpointCommand).then(
+            (breakpoint: OutputRecord) => {
+              const bkpt = breakpoint.getResult('bkpt');
+              breakpointsConfirmed.push(
+                new Breakpoint(!bkpt.pending, bkpt.line)
+              );
+            }
+          )
         );
       });
 
@@ -476,11 +545,11 @@ export class GDBNew extends Debugger {
     });
   }
 
-  public stepIn(threadID: number): Promise<any> {
+  public stepIn(threadID: number): Promise<OutputRecord> {
     return this.sendCommand(`-exec-step --thread ${threadID}`);
   }
 
-  public stepOut(threadID: number): Promise<any> {
+  public stepOut(threadID: number): Promise<OutputRecord> {
     return this.sendCommand(`-exec-finish --thread ${threadID}`);
   }
 
@@ -553,5 +622,13 @@ export class GDBNew extends Debugger {
         resolve(true);
       }
     });
+  }
+
+  private escapeQuotes(str: string): string {
+    return str.replace(/"/g, '\\"');
+  }
+
+  private escapeEscapeCharacters(str: string): string {
+    return str.replace(/\\/g, '');
   }
 }

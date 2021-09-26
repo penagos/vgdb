@@ -5,6 +5,9 @@ import {WriteStream} from 'fs';
 import * as ts from 'tail-stream';
 import {OutputChannel, Terminal} from 'vscode';
 import {AttachRequestArguments, LaunchRequestArguments} from '../DebugSession';
+import {Breakpoint} from 'vscode-debugadapter';
+import {OutputRecord} from './gdb/parser/OutputRecord';
+import {ResultRecord} from './gdb/parser/ResultRecord';
 
 export const SCOPE_LOCAL = 100000;
 export const SCOPE_REGISTERS = 200000;
@@ -124,17 +127,23 @@ export abstract class Debugger extends EventEmitter {
   public abstract getDisassembly(memoryAddress: string): Promise<any>;
   public abstract getThreads(): Promise<any>;
   public abstract getVariables(referenceID: number): Promise<any>;
-  public abstract next(threadID: number, granularity: string): Promise<any>;
-  public abstract pause(threadID: number): Promise<any>;
-  public abstract sendCommand(command: string): Promise<any>;
-  public abstract sendUserCommand(command: string): Promise<any>;
+  public abstract next(
+    threadID: number,
+    granularity: string
+  ): Promise<OutputRecord>;
+  public abstract pause(threadID?: number): Promise<boolean>;
+  public abstract sendCommand(command: string): Promise<OutputRecord>;
+  public abstract sendUserCommand(
+    command: string,
+    frameID?: number
+  ): Promise<ResultRecord>;
   public abstract setBreakpoints(
     fileName: string,
     breakpoints: any[]
-  ): Promise<any>;
+  ): Promise<Breakpoint[]>;
   public abstract spawnDebugger(): Promise<any>;
-  public abstract stepIn(threadID: number): Promise<any>;
-  public abstract stepOut(threadID: number): Promise<any>;
+  public abstract stepIn(threadID: number): Promise<OutputRecord>;
+  public abstract stepOut(threadID: number): Promise<OutputRecord>;
   public abstract startInferior(): Promise<any>;
   public abstract terminate(): Promise<any>;
   public abstract launchInferior(): Promise<any>;
@@ -144,7 +153,7 @@ export abstract class Debugger extends EventEmitter {
   protected abstract handlePostDebuggerStartup(): Promise<boolean>;
 
   protected isStopped(): boolean {
-    return this.threadID === -1;
+    return this.threadID !== -1;
   }
 
   protected log(text: string) {

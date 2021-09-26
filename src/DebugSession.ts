@@ -11,12 +11,18 @@ import {
   TerminatedEvent,
   Thread,
   ThreadEvent,
+  Variable,
 } from 'vscode-debugadapter';
 
 import * as vscode from 'vscode';
 import {OutputChannel, Terminal} from 'vscode';
 import {GDBNew} from './debuggers/gdb/GDBNew';
-import {Debugger, SCOPE_LOCAL, SCOPE_REGISTERS} from './debuggers/Debugger';
+import {
+  Debugger,
+  DebuggerVariable,
+  SCOPE_LOCAL,
+  SCOPE_REGISTERS,
+} from './debuggers/Debugger';
 import {
   EVENT_ERROR_FATAL,
   EVENT_OUTPUT,
@@ -213,9 +219,31 @@ export class DebugSession extends LoggingDebugSession {
     args: DebugProtocol.VariablesArguments,
     request?: DebugProtocol.Request
   ) {
-    this.debugger.getVariables(args.variablesReference).then((vars: any) => {
-      this.sendResponse(response);
-    });
+    this.debugger
+      .getVariables(args.variablesReference)
+      .then((vars: Map<number, DebuggerVariable>) => {
+        const variables: Variable[] = [];
+
+        vars.forEach(variable => {
+          // If this is a string strip out special chars
+          if (typeof variable.value === 'string') {
+            variable.value = this.debugger.sanitize(variable.value, false);
+          }
+
+          const v: DebugProtocol.Variable = new Variable(
+            variable.name,
+            variable.value,
+            variable.numberOfChildren ? variable.referenceID : 0
+          );
+          variables.push(v);
+        });
+
+        response.body = {
+          variables: variables,
+        };
+
+        this.sendResponse(response);
+      });
   }
 
   protected nextRequest(
@@ -306,6 +334,59 @@ export class DebugSession extends LoggingDebugSession {
 
         this.sendResponse(response);
       });
+  }
+
+  protected evaluateRequest(
+    response: DebugProtocol.EvaluateResponse,
+    args: DebugProtocol.EvaluateArguments
+  ): void {
+    // GDB enumerates frames starting from 0
+    if (args.frameId) {
+      --args.frameId;
+    }
+
+    switch (args.context) {
+      case 'repl':
+        this.debugger.pause().then((wasPaused: boolean) => {
+          const isMICommand = args.expression.startsWith('-');
+
+          if (isMICommand) {
+            this.debugger.sendCommand(args.expression).then(record => {
+              this.sendEvent(
+                new OutputEvent(record.prettyPrint() + '\n', 'console')
+              );
+            });
+          } else {
+            this.debugger.sendUserCommand(args.expression, args.frameId);
+          }
+
+          if (!wasPaused) {
+            this.debugger.continue().then(() => {
+              this.sendResponse(response);
+            });
+          } else {
+            this.sendResponse(response);
+          }
+        });
+        break;
+
+      case 'watch':
+      case 'hover':
+        /*
+        // TODO: hook up variable references
+        this.debugger.evaluateExpr(args.expression, args.frameId).then(
+          (result: any) => {
+            if (result) {
+              response.body = {
+                result: result,
+                variablesReference: 0,
+              };
+              this.sendResponse(response);
+            }
+          }
+        );*/
+        break;
+    }
   }
 
   protected log(text: string): void {
