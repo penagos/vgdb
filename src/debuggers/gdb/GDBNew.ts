@@ -1,4 +1,3 @@
-import {resolve} from 'path';
 import path = require('path');
 import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
@@ -362,7 +361,8 @@ export class GDBNew extends Debugger {
         this.sendCommand(
           `-var-list-children --simple-values "${variableName}"`
         ).then(children => {
-          const childrenVariables = new Map();
+          let childrenVariables = new Map();
+          const pending: Promise<any>[] = [];
 
           children.getResult('children').forEach(child => {
             // Check to see if this is a pseudo child on an aggregate type
@@ -370,9 +370,33 @@ export class GDBNew extends Debugger {
             // child and annotate its consituents with such attribute for
             // special treating by the front-end. Note we could have mulitple
             // such pseudo-levels at a given level
+            if (this.isPseudoVariableChild(child[1])) {
+              const pseudoPromise = getVariableChildren(child[1].name);
+              pseudoPromise.then(variables => {
+                childrenVariables = new Map([
+                  ...childrenVariables,
+                  ...variables,
+                ]);
+              });
+
+              pending.push(pseudoPromise);
+            } else {
+              const newVariable: DebuggerVariable = {
+                name: child[1].exp,
+                debuggerName: child[1].name,
+                numberOfChildren: parseInt(child[1].numChild),
+                referenceID: this.variables.size + 1 + childrenVariables.size + 1,
+                value: child[1].value || '',
+              };
+
+              childrenVariables.set(newVariable.referenceID, newVariable);
+            }
           });
 
-          resolve(childrenVariables);
+          Promise.all(pending).then(() => {
+            this.variables = new Map([...this.variables, ...childrenVariables]);
+            resolve(childrenVariables);
+          });
         });
       });
     };
@@ -383,7 +407,7 @@ export class GDBNew extends Debugger {
         const variable = this.variables.get(referenceID);
 
         if (variable) {
-          getVariableChildren(variable.name).then(variables =>
+          getVariableChildren(variable.debuggerName).then(variables =>
             resolve(variables)
           );
         } else {
@@ -410,6 +434,7 @@ export class GDBNew extends Debugger {
                   gdbVariable => {
                     this.variables.set(this.variables.size + 1, {
                       name: variable.name,
+                      debuggerName: gdbVariable.getResult('name'),
                       numberOfChildren: parseInt(
                         gdbVariable.getResult('numchild')
                       ),
@@ -630,5 +655,9 @@ export class GDBNew extends Debugger {
 
   private escapeEscapeCharacters(str: string): string {
     return str.replace(/\\/g, '');
+  }
+
+  private isPseudoVariableChild(child: any): boolean {
+    return !child.type && !child.value;
   }
 }

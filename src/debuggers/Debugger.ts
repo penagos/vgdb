@@ -18,6 +18,10 @@ export abstract class DebuggerException {
 
 export class DebuggerVariable {
   public name: string;
+
+  // The unique "name" assigned by the underlying MI debugger need not be identical
+  // to the actual source location name
+  public debuggerName: string;
   public numberOfChildren: number;
   public referenceID: number;
   public value: any;
