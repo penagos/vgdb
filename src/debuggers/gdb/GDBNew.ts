@@ -74,6 +74,9 @@ export class GDBNew extends Debugger {
   // Mapping of symbolic variable names to GDB variable references
   private variables = new Map<number, DebuggerVariable>();
 
+  // Mapping of register numbers to their names
+  private registers: string[] = [];
+
   public spawnDebugger(): Promise<any> {
     throw new Error('Method not implemented.');
   }
@@ -385,7 +388,8 @@ export class GDBNew extends Debugger {
                 name: child[1].exp,
                 debuggerName: child[1].name,
                 numberOfChildren: parseInt(child[1].numChild),
-                referenceID: this.variables.size + 1 + childrenVariables.size + 1,
+                referenceID:
+                  this.variables.size + 1 + childrenVariables.size + 1,
                 value: child[1].value || '',
               };
 
@@ -453,7 +457,22 @@ export class GDBNew extends Debugger {
           });
         });
       } else {
-        // Fetch registers
+        // Fetch registers -- TODO: group registers like variables
+        this.sendCommand('-data-list-register-values r').then(
+          (record: OutputRecord) => {
+            resolve(
+              record
+                .getResult('register-values')
+                .map(reg => {
+                  return {
+                    name: this.registers[reg.number],
+                    value: reg.value,
+                  };
+                })
+                .filter(reg => reg.name)
+            );
+          }
+        );
       }
     });
   }
@@ -583,7 +602,7 @@ export class GDBNew extends Debugger {
   }
 
   public terminate(): Promise<any> {
-    throw new Error('Method not implemented.');
+    return this.sendCommand('-gdb-exit');
   }
 
   protected createDebuggerLaunchCommand(): string {
@@ -620,9 +639,7 @@ export class GDBNew extends Debugger {
   }
 
   protected handlePostDebuggerStartup(): Promise<boolean> {
-    return new Promise(resolve => {
-      resolve(true);
-    });
+    return this.cacheRegisterNames();
   }
 
   private createEnvironmentVariablesSetterCommand(): string {
@@ -659,5 +676,21 @@ export class GDBNew extends Debugger {
 
   private isPseudoVariableChild(child: any): boolean {
     return !child.type && !child.value;
+  }
+
+  private cacheRegisterNames(): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.sendCommand('-data-list-register-names').then(
+        (record: OutputRecord) => {
+          record
+            .getResult('register-names')
+            .forEach((reg: string, idx: number) => {
+              this.registers[idx] = reg;
+            });
+
+          resolve(true);
+        }
+      );
+    });
   }
 }
