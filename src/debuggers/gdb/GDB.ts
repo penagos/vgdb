@@ -682,7 +682,12 @@ export class GDB extends Debugger {
   }
 
   protected handlePostDebuggerStartup(): Promise<boolean> {
-    return this.cacheRegisterNames();
+    return new Promise(resolve => {
+      Promise.all([
+        this.cacheRegisterNames(),
+        this.deferSharedLibraryLoading(),
+      ]).then(() => resolve(true));
+    });
   }
 
   private createEnvironmentVariablesSetterCommand(): string {
@@ -734,6 +739,19 @@ export class GDB extends Debugger {
           resolve(true);
         }
       );
+    });
+  }
+
+  private deferSharedLibraryLoading(): Promise<boolean> {
+    return new Promise(resolve => {
+      if (this.sharedLibraries.length) {
+        Promise.all([
+          this.sendCommand('-gdb-set stop-on-solib-events 1'),
+          this.sendCommand('-gdb-set auto-solib-add off'),
+        ]).then(() => resolve(true));
+      } else {
+        resolve(false);
+      }
     });
   }
 }

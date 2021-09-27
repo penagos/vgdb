@@ -212,6 +212,7 @@ export abstract class Debugger extends EventEmitter {
     this.useExternalTerminal = args.externalConsole || false;
     this.useAbsoluteFilePathsForBreakpoints = args.useAbsoluteFilePaths || true;
     this.userSpecifiedDebuggerArguments = args.args || [];
+    this.sharedLibraries = args.sharedLibraries || [];
   }
 
   private createTerminalAndLaunchDebugger(terminal: Terminal) {
