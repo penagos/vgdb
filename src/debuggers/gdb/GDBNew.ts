@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import path = require('path');
 import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
@@ -77,7 +78,7 @@ export class GDBNew extends Debugger {
   // Mapping of register numbers to their names
   private registers: string[] = [];
 
-  public spawnDebugger(): Promise<any> {
+  public spawnDebugger(): Promise<boolean> {
     throw new Error('Method not implemented.');
   }
 
@@ -101,7 +102,7 @@ export class GDBNew extends Debugger {
           if ((record = this.parser.parse(line))) {
             this.handleParsedResult(record);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           this.emit(EVENT_ERROR_FATAL);
         }
       });
@@ -262,8 +263,23 @@ export class GDBNew extends Debugger {
     throw new Error('Method not implemented.');
   }
 
-  public clearBreakpoints(fileName: string): Promise<any> {
-    throw new Error('Method not implemented.');
+  public clearBreakpoints(fileName: string): Promise<boolean> {
+    return new Promise(resolve => {
+      const pending: Promise<OutputRecord>[] = [];
+      const breakpoints = this.breakpoints.get(fileName);
+      if (breakpoints) {
+        breakpoints.forEach((breakpoint: number) => {
+          pending.push(this.sendCommand(`-break-delete ${breakpoint}`));
+        });
+
+        Promise.all(pending).then(() => {
+          this.breakpoints.delete(fileName);
+          resolve(true);
+        });
+      } else {
+        resolve(true);
+      }
+    });
   }
 
   public continue(threadID?: number): Promise<any> {
@@ -556,35 +572,37 @@ export class GDBNew extends Debugger {
         this.breakpoints.set(fileName, []);
       }
 
-      fileName = this.getNormalizedFileName(fileName);
-      const breakpointsPending: Promise<void>[] = [];
-      const breakpointsConfirmed: Breakpoint[] = [];
+      this.clearBreakpoints(fileName).then(() => {
+        fileName = this.getNormalizedFileName(fileName);
+        const breakpointsPending: Promise<void>[] = [];
+        const breakpointsConfirmed: Breakpoint[] = [];
 
-      // Send each breakpoint to GDB. As GDB replies with acknowledgements of
-      // the breakpoint being set, if the breakpoint has been bound to a source
-      // location, mark the breakpoint as being verified. Further, irregardless
-      // of whether or not a breakpoint has been bound to source, modify break
-      // conditions if/when applicable. Note that since we issue commands sequentially
-      // and the debugger will resolve commands in order, we fulfill the requirement
-      // that breakpoints be returned in the same order requested
-      breakpoints.forEach(breakpoint => {
-        const breakpointCommand = `-break-insert -f ${fileName}:${breakpoint.line}`;
-        breakpointsPending.push(
-          this.sendCommand(breakpointCommand).then(
-            (breakpoint: OutputRecord) => {
-              const bkpt = breakpoint.getResult('bkpt');
-              breakpointsConfirmed.push(
-                new Breakpoint(!bkpt.pending, bkpt.line)
-              );
-            }
-          )
-        );
-      });
+        // Send each breakpoint to GDB. As GDB replies with acknowledgements of
+        // the breakpoint being set, if the breakpoint has been bound to a source
+        // location, mark the breakpoint as being verified. Further, irregardless
+        // of whether or not a breakpoint has been bound to source, modify break
+        // conditions if/when applicable. Note that since we issue commands sequentially
+        // and the debugger will resolve commands in order, we fulfill the requirement
+        // that breakpoints be returned in the same order requested
+        breakpoints.forEach(breakpoint => {
+          const breakpointCommand = `-break-insert -f ${fileName}:${breakpoint.line}`;
+          breakpointsPending.push(
+            this.sendCommand(breakpointCommand).then(
+              (breakpoint: OutputRecord) => {
+                const bkpt = breakpoint.getResult('bkpt');
+                breakpointsConfirmed.push(
+                  new Breakpoint(!bkpt.pending, bkpt.line)
+                );
+              }
+            )
+          );
+        });
 
-      Promise.all(breakpointsPending).then(() => {
-        // Only return breakpoints GDB has actually bound to a source. Others
-        // will be marked verified as the debugger binds them later on
-        resolve(breakpointsConfirmed);
+        Promise.all(breakpointsPending).then(() => {
+          // Only return breakpoints GDB has actually bound to a source. Others
+          // will be marked verified as the debugger binds them later on
+          resolve(breakpointsConfirmed);
+        });
       });
     });
   }
@@ -679,7 +697,7 @@ export class GDBNew extends Debugger {
   }
 
   private cacheRegisterNames(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
       this.sendCommand('-data-list-register-names').then(
         (record: OutputRecord) => {
           record

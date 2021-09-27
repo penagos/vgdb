@@ -1,11 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {exec, spawn} from 'child_process';
 import {EventEmitter} from 'events';
 import * as fs from 'fs';
 import {WriteStream} from 'fs';
 import * as ts from 'tail-stream';
-import {OutputChannel, Terminal} from 'vscode';
+import {CompletionItem, OutputChannel, Terminal} from 'vscode';
 import {AttachRequestArguments, LaunchRequestArguments} from '../DebugSession';
 import {Breakpoint} from 'vscode-debugadapter';
+// eslint-disable-next-line node/no-extraneous-import
+import {DebugProtocol} from 'vscode-debugprotocol';
 import {OutputRecord} from './gdb/parser/OutputRecord';
 import {ResultRecord} from './gdb/parser/ResultRecord';
 
@@ -24,7 +27,7 @@ export class DebuggerVariable {
   public debuggerName: string;
   public numberOfChildren: number;
   public referenceID: number;
-  public value: any;
+  public value: string;
 }
 
 // Used as an abstraction for integrated/non-integrated terminals
@@ -108,7 +111,7 @@ export abstract class Debugger extends EventEmitter {
 
   public spawn(
     args: LaunchRequestArguments | AttachRequestArguments
-  ): Promise<any> {
+  ): Promise<boolean> {
     // TODO: removeme
     console.log(this.outputChannel);
 
@@ -124,10 +127,14 @@ export abstract class Debugger extends EventEmitter {
   }
 
   public abstract attachInferior(): Promise<any>;
-  public abstract clearBreakpoints(fileName: string): Promise<any>;
-  public abstract continue(threadID?: number): Promise<any>;
-  public abstract getStackTrace(threadID: number): Promise<any>;
-  public abstract getCommandCompletions(command: string): Promise<any>;
+  public abstract clearBreakpoints(fileName: string): Promise<boolean>;
+  public abstract continue(threadID?: number): Promise<OutputRecord>;
+  public abstract getStackTrace(
+    threadID: number
+  ): Promise<DebugProtocol.StackFrame[]>;
+  public abstract getCommandCompletions(
+    command: string
+  ): Promise<CompletionItem[]>;
   public abstract getDisassembly(memoryAddress: string): Promise<any>;
   public abstract getThreads(): Promise<any>;
   public abstract getVariables(referenceID: number): Promise<any>;
@@ -143,9 +150,9 @@ export abstract class Debugger extends EventEmitter {
   ): Promise<ResultRecord>;
   public abstract setBreakpoints(
     fileName: string,
-    breakpoints: any[]
+    breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]>;
-  public abstract spawnDebugger(): Promise<any>;
+  public abstract spawnDebugger(): Promise<boolean>;
   public abstract stepIn(threadID: number): Promise<OutputRecord>;
   public abstract stepOut(threadID: number): Promise<OutputRecord>;
   public abstract startInferior(): Promise<any>;
@@ -278,8 +285,8 @@ export abstract class Debugger extends EventEmitter {
    * commands have finished executing, allow launch request to continue
    */
   private runStartupCommands(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      const pendingCommands: Promise<any>[] = [];
+    return new Promise(resolve => {
+      const pendingCommands: Promise<OutputRecord>[] = [];
 
       this.startupCommands.forEach(cmd => {
         pendingCommands.push(this.sendCommand(cmd));

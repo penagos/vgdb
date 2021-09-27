@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // eslint-disable-next-line node/no-extraneous-import
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {
@@ -389,6 +390,16 @@ export class DebugSession extends LoggingDebugSession {
     }
   }
 
+  protected disconnectRequest(
+    response: DebugProtocol.DisconnectResponse,
+    args: DebugProtocol.DisconnectArguments
+  ): void {
+    // If this was an attach request do not kill the inferior
+    this.debugger.terminate().then(() => {
+      this.sendResponse(response);
+    });
+  }
+
   protected log(text: string): void {
     this.outputChannel.appendLine(text);
   }
@@ -403,6 +414,7 @@ export class DebugSession extends LoggingDebugSession {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private getSettingValue(settingName: string): any {
     return vscode.workspace.getConfiguration('vgdb').get(settingName);
   }
