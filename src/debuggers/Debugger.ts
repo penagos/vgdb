@@ -129,6 +129,10 @@ export abstract class Debugger extends EventEmitter {
   public abstract attachInferior(): Promise<any>;
   public abstract clearBreakpoints(fileName: string): Promise<boolean>;
   public abstract continue(threadID?: number): Promise<OutputRecord>;
+  public abstract evaluateExpression(
+    expr: string,
+    frameID?: number
+  ): Promise<any>;
   public abstract getStackTrace(
     threadID: number
   ): Promise<DebugProtocol.StackFrame[]>;

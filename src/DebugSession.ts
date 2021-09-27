@@ -17,7 +17,7 @@ import {
 
 import * as vscode from 'vscode';
 import {OutputChannel, Terminal} from 'vscode';
-import {GDBNew} from './debuggers/gdb/GDBNew';
+import {GDB} from './debuggers/gdb/GDB';
 import {
   Debugger,
   DebuggerVariable,
@@ -112,7 +112,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments
   ): Promise<void> {
-    this.debugger = new GDBNew(this.terminal, this.outputChannel);
+    this.debugger = new GDB(this.terminal, this.outputChannel);
     this.bindDebuggerEvents();
 
     response.body = {
@@ -373,10 +373,10 @@ export class DebugSession extends LoggingDebugSession {
 
       case 'watch':
       case 'hover':
-        /*
         // TODO: hook up variable references
-        this.debugger.evaluateExpr(args.expression, args.frameId).then(
-          (result: any) => {
+        this.debugger
+          .evaluateExpression(args.expression, args.frameId)
+          .then(result => {
             if (result) {
               response.body = {
                 result: result,
@@ -384,8 +384,7 @@ export class DebugSession extends LoggingDebugSession {
               };
               this.sendResponse(response);
             }
-          }
-        );*/
+          });
         break;
     }
   }
