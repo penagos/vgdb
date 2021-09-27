@@ -373,6 +373,8 @@ export class GDBNew extends Debugger {
   public getVariables(
     referenceID: number
   ): Promise<Map<number, DebuggerVariable>> {
+    // Recursive method to correctly fetch children of pseudo scopes introduced
+    // by the underlying MI debugger
     const getVariableChildren = (
       variableName: string
     ): Promise<Map<number, DebuggerVariable>> => {
@@ -403,7 +405,7 @@ export class GDBNew extends Debugger {
               const newVariable: DebuggerVariable = {
                 name: child[1].exp,
                 debuggerName: child[1].name,
-                numberOfChildren: parseInt(child[1].numChild),
+                numberOfChildren: parseInt(child[1].numchild),
                 referenceID:
                   this.variables.size + 1 + childrenVariables.size + 1,
                 value: child[1].value || '',
