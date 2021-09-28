@@ -103,9 +103,13 @@
     "debuggers": [
       {
         "type": "vgdb",
-        "label": "vGDB: C/C++ Debug",
+        "label": "C/C++ Debug (vGDB)",
         "program": "./out/debugAdapter.js",
         "runtime": "node",
+        "languages": [
+          "c",
+          "cpp"
+        ],
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -240,7 +244,7 @@
             }
           },
           {
-            "label": "vGDB C/C++ Debug: Attach",
+            "label": "C/C++ Debug: Attach (vGDB)",
             "description": "Attach GDB to running C/C++ program",
             "body": {
               "type": "vgdb",
