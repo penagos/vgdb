@@ -516,7 +516,7 @@ export class GDB extends Debugger {
   }
 
   public sendCommand(command: string): Promise<OutputRecord> {
-    console.log(command);
+    this.log(command);
 
     return new Promise(resolve => {
       command = `${++this.token + command}\n`;
@@ -704,7 +704,15 @@ export class GDB extends Debugger {
   private clearDebuggerVariables(): Promise<boolean> {
     return new Promise(resolve => {
       if (this.variables.size) {
-        this.sendCommand('-var-delete').then(() => {
+        const pending: Promise<OutputRecord>[] = [];
+
+        this.variables.forEach(variable => {
+          pending.push(
+            this.sendCommand(`-var-delete ${variable.debuggerName}`)
+          );
+        });
+
+        Promise.all(pending).then(() => {
           this.variables.clear();
           resolve(true);
         });
