@@ -589,6 +589,19 @@ export class GDB extends Debugger {
     fileName: string,
     breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]> {
+    const getBreakpointInsertionCommand = (
+      fileName: string,
+      breakpoint: DebugProtocol.SourceBreakpoint
+    ): string => {
+      let cmd = `-f ${fileName}:${breakpoint.line}`;
+
+      if (breakpoint.condition) {
+        cmd = `-c ${breakpoint.condition} ${cmd}`;
+      }
+
+      return `-break-insert ${cmd}`;
+    };
+
     return new Promise(resolve => {
       this.clearBreakpoints(fileName).then(() => {
         const normalizedFileName = this.getNormalizedFileName(fileName);
@@ -604,18 +617,17 @@ export class GDB extends Debugger {
         // and the debugger will resolve commands in order, we fulfill the requirement
         // that breakpoints be returned in the same order requested
         breakpoints.forEach(breakpoint => {
-          const breakpointCommand = `-break-insert -f ${normalizedFileName}:${breakpoint.line}`;
           breakpointsPending.push(
-            this.sendCommand(breakpointCommand).then(
-              (breakpoint: OutputRecord) => {
-                const bkpt = breakpoint.getResult('bkpt');
-                breakpointsConfirmed.push(
-                  new Breakpoint(!bkpt.pending, bkpt.line)
-                );
+            this.sendCommand(
+              getBreakpointInsertionCommand(normalizedFileName, breakpoint)
+            ).then((breakpoint: OutputRecord) => {
+              const bkpt = breakpoint.getResult('bkpt');
+              breakpointsConfirmed.push(
+                new Breakpoint(!bkpt.pending, bkpt.line)
+              );
 
-                breakpointIDs.push(parseInt(bkpt.number));
-              }
-            )
+              breakpointIDs.push(parseInt(bkpt.number));
+            })
           );
         });
 
