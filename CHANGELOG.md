@@ -1,7 +1,7 @@
 # Release Notes
 **This extension is under active development**
 
-## 1.0.0 (TBD)
+## 1.0.0 (October/5/2021)
 
 This release includes numerous bug fixes and additional features as outlined below:
 
