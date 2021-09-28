@@ -208,6 +208,13 @@ export class GDB extends Debugger {
                 this.sharedLibraries.forEach((library: string) => {
                   if (this.loadedLibraries.get(library)) {
                     this.sendCommand(`sharedlibrary ${library}`);
+
+                    // Do not load shared libraries more than once
+                    // This is more of a standing hack, and should be
+                    // revisited with a more robust solution as a shared
+                    // library could be closed by the inferior and need to
+                    // be reloaded again (i.e. we must add it back)
+                    this.loadedLibraries.delete(library);
                   }
                 });
 

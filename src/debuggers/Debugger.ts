@@ -208,7 +208,7 @@ export abstract class Debugger extends EventEmitter {
   private applyArguments(args: any) {
     this.cwd = args.cwd || '';
     this.debuggerPath = args.debugger || this.debuggerPath;
-    this.environmentVariables = args.envVars || [];
+    this.environmentVariables = args.env || [];
     this.inferiorProgram = args.program;
     this.startupCommands = args.startupCmds || [];
     this.useExternalTerminal = args.externalConsole || false;
