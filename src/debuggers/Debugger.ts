@@ -198,7 +198,7 @@ export abstract class Debugger extends EventEmitter {
   }
 
   protected getNormalizedFileName(fileName: string): string {
-    if (this.useAbsoluteFilePathsForBreakpoints) {
+    if (!this.useAbsoluteFilePathsForBreakpoints) {
       fileName = fileName.replace(this.cwd, '').replace(/^\//, '');
     }
 

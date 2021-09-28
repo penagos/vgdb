@@ -590,16 +590,11 @@ export class GDB extends Debugger {
     breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]> {
     return new Promise(resolve => {
-      // If this is the first time setting a breakpoit in this file, initialize
-      // our breakpoints array to countain no previously requested breakpoints
-      if (!this.breakpoints.has(fileName)) {
-        this.breakpoints.set(fileName, []);
-      }
-
       this.clearBreakpoints(fileName).then(() => {
-        fileName = this.getNormalizedFileName(fileName);
+        const normalizedFileName = this.getNormalizedFileName(fileName);
         const breakpointsPending: Promise<void>[] = [];
         const breakpointsConfirmed: Breakpoint[] = [];
+        const breakpointIDs: number[] = [];
 
         // Send each breakpoint to GDB. As GDB replies with acknowledgements of
         // the breakpoint being set, if the breakpoint has been bound to a source
@@ -609,7 +604,7 @@ export class GDB extends Debugger {
         // and the debugger will resolve commands in order, we fulfill the requirement
         // that breakpoints be returned in the same order requested
         breakpoints.forEach(breakpoint => {
-          const breakpointCommand = `-break-insert -f ${fileName}:${breakpoint.line}`;
+          const breakpointCommand = `-break-insert -f ${normalizedFileName}:${breakpoint.line}`;
           breakpointsPending.push(
             this.sendCommand(breakpointCommand).then(
               (breakpoint: OutputRecord) => {
@@ -617,6 +612,8 @@ export class GDB extends Debugger {
                 breakpointsConfirmed.push(
                   new Breakpoint(!bkpt.pending, bkpt.line)
                 );
+
+                breakpointIDs.push(parseInt(bkpt.number));
               }
             )
           );
@@ -625,6 +622,7 @@ export class GDB extends Debugger {
         Promise.all(breakpointsPending).then(() => {
           // Only return breakpoints GDB has actually bound to a source. Others
           // will be marked verified as the debugger binds them later on
+          this.breakpoints.set(fileName, breakpointIDs);
           resolve(breakpointsConfirmed);
         });
       });
