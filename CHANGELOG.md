@@ -13,8 +13,10 @@ This release includes numerous bug fixes and additional features as outlined bel
 - Correctly handle debugger exceptions
 - Correctly handle environment variables
 - Correctly handle deferred symbol loading
+- Correctly handle aggregate variables in watch pane, variables pane and mouse hovers
 - Support (optional) MI command syntax in debug console
 - Upgrade dependencies
+- Refactor debugger interface for faster performance
 - Other minor bug fixes and stability improvements
 
 ## 0.1.27 (July/23/2020)
