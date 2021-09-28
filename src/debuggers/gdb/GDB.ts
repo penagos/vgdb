@@ -365,6 +365,12 @@ export class GDB extends Debugger {
     });
   }
 
+  public getVariable(name: string): DebuggerVariable | undefined {
+    return [...this.variables.values()].find(variable => {
+      return variable.name === name;
+    });
+  }
+
   /**
    * This is invoked for requesting all variables in all scopes. To distinguish
    * how we query the debugger, rely on artifically large scope identifiers
@@ -444,27 +450,13 @@ export class GDB extends Debugger {
               referenceID - SCOPE_LOCAL - this.threadID
             } --no-frame-filters --simple-values`
           ).then((record: OutputRecord) => {
-            const pending: Promise<void>[] = [];
+            const pending: Promise<DebuggerVariable>[] = [];
 
             // Ask GDB to create a new variable so we can correctly display nested
             // variables via reference IDs. When execution is resumed, delete all
             // temporarily created variables to avoid polluting future breaks
             record.getResult('variables').forEach(variable => {
-              pending.push(
-                this.sendCommand(`-var-create - * "${variable.name}"`).then(
-                  gdbVariable => {
-                    this.variables.set(this.variables.size + 1, {
-                      name: variable.name,
-                      debuggerName: gdbVariable.getResult('name'),
-                      numberOfChildren: parseInt(
-                        gdbVariable.getResult('numchild')
-                      ),
-                      referenceID: this.variables.size + 1,
-                      value: gdbVariable.getResult('value'),
-                    });
-                  }
-                )
-              );
+              pending.push(this.createVariable(variable.name));
             });
 
             Promise.all(pending).then(() => {
@@ -646,6 +638,27 @@ export class GDB extends Debugger {
 
   public terminate(): Promise<any> {
     return this.sendCommand('-gdb-exit');
+  }
+
+  public createVariable(name: string): Promise<DebuggerVariable> {
+    return new Promise(resolve => {
+      this.sendCommand(`-var-create - * "${this.escapeQuotes(name)}"`).then(
+        gdbVariable => {
+          const childCount = parseInt(gdbVariable.getResult('numchild'));
+          const newVariable: DebuggerVariable = {
+            name: name,
+            debuggerName: gdbVariable.getResult('name'),
+            numberOfChildren: childCount,
+            referenceID: childCount ? this.variables.size + 1 : 0,
+            value: gdbVariable.getResult('value'),
+          };
+
+          this.variables.set(this.variables.size + 1, newVariable);
+
+          resolve(newVariable);
+        }
+      );
+    });
   }
 
   protected createDebuggerLaunchCommand(): string {

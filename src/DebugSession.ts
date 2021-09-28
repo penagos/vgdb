@@ -372,20 +372,29 @@ export class DebugSession extends LoggingDebugSession {
         break;
 
       case 'watch':
-      case 'hover':
-        // TODO: hook up variable references
-        this.debugger
-          .evaluateExpression(args.expression, args.frameId)
-          .then(result => {
-            if (result) {
-              response.body = {
-                result: result,
-                variablesReference: 0,
-              };
-              this.sendResponse(response);
-            }
-          });
-        break;
+      case 'hover': {
+        const handler = (variable: DebuggerVariable) => {
+          response.body = {
+            result: variable.value,
+            variablesReference: variable.referenceID,
+          };
+
+          if (variable.value) {
+            this.sendResponse(response);
+          }
+        };
+
+        const variable = this.debugger.getVariable(args.expression);
+
+        // If variable is already being tracked, reuse "cached" result
+        if (variable) {
+          handler(variable);
+        } else {
+          this.debugger
+            .createVariable(args.expression)
+            .then((variable: DebuggerVariable) => handler(variable));
+        }
+      }
     }
   }
 

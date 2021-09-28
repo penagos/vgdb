@@ -128,6 +128,7 @@ export abstract class Debugger extends EventEmitter {
 
   public abstract attachInferior(): Promise<any>;
   public abstract clearBreakpoints(fileName: string): Promise<boolean>;
+  public abstract createVariable(name: string): Promise<DebuggerVariable>;
   public abstract continue(threadID?: number): Promise<OutputRecord>;
   public abstract evaluateExpression(
     expr: string,
@@ -141,6 +142,7 @@ export abstract class Debugger extends EventEmitter {
   ): Promise<CompletionItem[]>;
   public abstract getDisassembly(memoryAddress: string): Promise<any>;
   public abstract getThreads(): Promise<any>;
+  public abstract getVariable(name: string): DebuggerVariable | undefined;
   public abstract getVariables(referenceID: number): Promise<any>;
   public abstract next(
     threadID: number,
@@ -175,7 +177,7 @@ export abstract class Debugger extends EventEmitter {
     this.outputChannel.appendLine(text);
   }
 
-  public sanitize(text: string, MI: boolean): string {
+  public sanitize(text: string, MI?: boolean): string {
     text = (text || '')
       .replace(/&"/g, '')
       .replace(/\\n/g, '')
