@@ -1,7 +1,7 @@
 {
   "name": "vgdb",
   "displayName": "vGDB",
-  "version": "0.2.4",
+  "version": "1.0.0",
   "publisher": "penagos",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -13,9 +13,10 @@
   },
   "license": "MIT",
   "keywords": [
-    "GDB",
     "C++",
-    "C"
+    "C",
+    "GDB",
+    "VGDB"
   ],
   "icon": "resources/vgdb.png",
   "engines": {
@@ -232,6 +233,7 @@
               "type": "vgdb",
               "request": "launch",
               "name": "C/C++ Debug Launch",
+              "debugger": "gdb",
               "program": "${workspaceFolder}/a.out",
               "args": [],
               "cwd": "${workspaceFolder}"
