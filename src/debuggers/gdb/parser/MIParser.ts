@@ -1,8 +1,9 @@
-import {Record} from './Record';
+import {OutputRecord} from './OutputRecord';
 import {AsyncRecord} from './AsyncRecord';
 import {StreamRecord} from './StreamRecord';
 import {Result} from './Result';
 import {ResultRecord} from './ResultRecord';
+import { OutOfBandRecord } from './OutOfBandRecord';
 
 // MI grammar based on https://ftp.gnu.org/old-gnu/Manuals/gdb/html_chapter/gdb_22.html
 // First sets below -- Regex exprs defined with `` need to escape \ char
@@ -34,45 +35,32 @@ const ASYNC_RECORD_POS = 2;
 const STREAM_RECORD_POS = 3;
 
 export class MIParser {
-  private buffer: string;
-  private token: number;
+  private buffer: string = '';
+  private token: number = 0;
 
-  public parse(str: string): Record | null {
-    let record;
+  public parse(str: string): OutputRecord | null {
+    let record: OutputRecord | null;
     this.buffer = str;
 
     try {
       // ( out-of-band-record )* [ result-record ] "(gdb)" nl
-      record = this.parseOutOfBandRecord();
+      record = this.parseOutOfBandRecord()
+        || this.parseResultRecord()
+        || this.parseGDBPrompt();
 
-      if (!record) {
-        record = this.parseResultRecord();
-      }
-
-      if (!record) {
-        // (gdb) -- if not the inferior produced stdout
-        if (this.buffer.trimRight() == GDB_PROMPT) {
-          return null;
-        } else {
-          // Print to output window
+        if (record) {
+          record.response = str;
         }
-      }
-    } catch (error) {
-      // Throw to adapter
-      console.error('Parser error: ' + error.message);
+    } catch (error: any) {
+      console.error(`Parser error: ${error.message}`);
       throw error;
-    }
-
-    // DEBUG only
-    if (record) {
-      record.response = str;
     }
 
     return record;
   }
 
-  private parseToken(match): number {
-    if (match[TOKEN_POS] != '') {
+  private parseToken(match: any[]): number {
+    if (match[TOKEN_POS] !== '') {
       this.token = parseInt(match[TOKEN_POS]);
     } else {
       this.token = NaN;
@@ -81,9 +69,17 @@ export class MIParser {
     return this.token;
   }
 
-  private parseOutOfBandRecord() {
+  private parseGDBPrompt(): null {
+    if (this.buffer.trimRight() !== GDB_PROMPT) {
+      new Error('Unexpected GDB symbol found in output.');
+    }
+
+    return null;
+  }
+
+  private parseOutOfBandRecord(): OutOfBandRecord | null {
     // async-record | stream-record
-    let match;
+    let match: any[] | null;
 
     if ((match = OUT_OF_BAND_RECORD.exec(this.buffer))) {
       this.parseToken(match);
@@ -95,13 +91,13 @@ export class MIParser {
       } else {
         throw new Error('Expected to find AsyncRecord or StreamRecord');
       }
-    }
+    } else return null;
   }
 
-  private parseAsyncRecord() {
+  private parseAsyncRecord(): AsyncRecord {
     // exec-async-output | status-async-output | notify-async-output
     // First character denotes result class
-    let match, result;
+    let match: any, result: any;
     const record = new AsyncRecord(this.token);
     record.setType(this.buffer[0]);
 
@@ -111,7 +107,7 @@ export class MIParser {
       record.setClass(match[1]);
       this.buffer = this.buffer.substring(match[0].length);
 
-      while (this.buffer[0] == ',') {
+      while (this.buffer[0] === ',') {
         // Consume , and read result
         this.buffer = this.buffer.substr(1);
 
@@ -126,14 +122,13 @@ export class MIParser {
     return record;
   }
 
-  private parseStreamRecord() {
-    // TODO
-    return new StreamRecord(1);
+  private parseStreamRecord(): StreamRecord {
+    return new StreamRecord(this.token, this.buffer[1]);
   }
 
-  private parseResultRecord() {
+  private parseResultRecord(): ResultRecord | null {
     // [ token ] "^" result-class ( "," result )* nl
-    let match, record: ResultRecord, result;
+    let match: any, record: any;
 
     if ((match = RESULT_RECORD.exec(this.buffer))) {
       record = new ResultRecord(this.parseToken(match));
@@ -142,11 +137,11 @@ export class MIParser {
       // Consume first part of match, parse results*
       this.buffer = this.buffer.substring(match[0].length);
 
-      while (this.buffer[0] == ',') {
+      while (this.buffer[0] === ',') {
         // Consume , and read result
         this.buffer = this.buffer.substr(1);
-
-        if ((result = this.parseResult())) {
+        const result = this.parseResult();
+        if (result) {
           record.addResult(result);
         }
       }
@@ -158,7 +153,7 @@ export class MIParser {
   }
 
   private parseResult(): any[] | null {
-    let match;
+    let match: any[] | null;
 
     if ((match = VARIABLE.exec(this.buffer))) {
       // Also consume '='
@@ -174,15 +169,12 @@ export class MIParser {
     switch (this.buffer[0]) {
       case VALUE_CSTRING:
         return this.parseCString();
-        break;
 
       case VALUE_TUPLE:
         return this.parseTuple();
-        break;
 
       case VALUE_LIST:
         return this.parseList();
-        break;
 
       default:
         return null;
@@ -190,7 +182,7 @@ export class MIParser {
   }
 
   private parseCString(): string {
-    let match;
+    let match: string[] | null;
 
     if ((match = CSTRING.exec(this.buffer))) {
       // Consume corresponding '"'
@@ -203,7 +195,7 @@ export class MIParser {
 
   private parseTuple(): Result[] {
     // tuple ==> "{}" | "{" result ( "," result )* "}"
-    let result;
+    let result: any[] | null;
     const tuple = <any>{};
 
     do {
@@ -212,7 +204,7 @@ export class MIParser {
       if ((result = this.parseResult())) {
         tuple[result[0]] = result[1];
       }
-    } while (this.buffer[0] == ',');
+    } while (this.buffer[0] === ',');
 
     // Conbsume last }
     this.buffer = this.buffer.substring(1);
@@ -222,7 +214,7 @@ export class MIParser {
 
   private parseList(): any[] {
     // list ==> "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
-    let match;
+    let match: any[] | null;
     const list: any = [];
 
     // Consume first [
@@ -230,7 +222,7 @@ export class MIParser {
 
     // Is this a list of values or list of results?
     if (
-      [VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) != -1
+      [VALUE_CSTRING, VALUE_LIST, VALUE_TUPLE].indexOf(this.buffer[0]) !== -1
     ) {
       // Value list
       while ((match = this.parseValue())) {

@@ -1,7 +1,7 @@
 {
   "name": "vgdb",
   "displayName": "vGDB",
-  "version": "0.1.27",
+  "version": "1.0.0",
   "publisher": "penagos",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -13,14 +13,14 @@
   },
   "license": "MIT",
   "keywords": [
-    "GDB",
     "C++",
-    "C"
+    "C",
+    "GDB",
+    "VGDB"
   ],
   "icon": "resources/vgdb.png",
   "engines": {
-    "vscode": "^1.33.0",
-    "node": "^10.15.1"
+    "vscode": "^1.59.0"
   },
   "categories": [
     "Debuggers"
@@ -33,14 +33,9 @@
     "url": "https://github.com/penagos/vgdb/issues"
   },
   "scripts": {
-    "prepublish": "tsc -p ./src",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./src",
-    "tslint": "tslint ./src/**/*.ts",
-    "watch": "tsc -w -p ./src",
-    "test": "mocha -u tdd ./out/tests/",
-    "postinstall": "node ./node_modules/vscode/bin/install",
-    "package": "vsce package",
-    "publish": "vsce publish",
+    "watch": "tsc -watch -p ./src",
     "lint": "gts lint",
     "clean": "gts clean",
     "fix": "gts fix",
@@ -49,24 +44,33 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "vscode-debugadapter": "1.35.0",
-    "tail-stream": "0.3.4"
+    "await-notify": "1.0.1",
+    "tail-stream": "^0.3.4",
+    "vscode-debugadapter": "^1.49.0"
   },
   "devDependencies": {
-    "@types/mocha": "5.2.7",
-    "@types/node": "^14.11.2",
-    "mocha": "6.2.0",
-    "tslint": "5.18.0",
-    "typescript": "^4.0.3",
-    "vsce": "^1.66.0",
-    "vscode": "1.1.36",
-    "vscode-debugadapter-testsupport": "1.35.0",
-    "gts": "^3.0.1"
+    "@types/glob": "^7.1.4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^14.14.37",
+    "@types/vscode": "^1.59.0",
+    "@typescript-eslint/eslint-plugin": "^4.29.3",
+    "@typescript-eslint/parser": "^4.29.3",
+    "eslint": "^7.32.0",
+    "glob": "^7.1.7",
+    "mocha": "^9.1.0",
+    "ts-loader": "^8.1.0",
+    "typescript": "^4.3.5",
+    "vsce": "^1.96.1",
+    "vscode-debugadapter-testsupport": "^1.49.0",
+    "gts": "^3.1.0"
   },
   "main": "./out/extension",
   "activationEvents": [
-    "onDebug"
+    "onStartupFinished"
   ],
+  "workspaceTrust": {
+    "request": "never"
+  },
   "contributes": {
     "configuration": {
       "title": "vGDB",
@@ -75,6 +79,16 @@
           "type": "boolean",
           "default": false,
           "description": "Show popup error window on invalid GDB command"
+        },
+        "vgdb.enableReverseDebugging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable reverse debugging support. Requires GDB 7+. Note: this may considerably slow down debugging."
+        },
+        "vgdb.enableCommandCompletions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable debug console command completions."
         }
       }
     },
@@ -219,6 +233,7 @@
               "type": "vgdb",
               "request": "launch",
               "name": "C/C++ Debug Launch",
+              "debugger": "gdb",
               "program": "${workspaceFolder}/a.out",
               "args": [],
               "cwd": "${workspaceFolder}"

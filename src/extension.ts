@@ -9,7 +9,7 @@ import {
   OutputChannel,
   Terminal,
 } from 'vscode';
-import {GDBDebugSession} from './GDBDebugSession';
+import {DebugSession} from './DebugSession';
 import * as Net from 'net';
 
 class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
@@ -50,7 +50,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
     if (!this.server) {
       // start listening on a random port
       this.server = Net.createServer(socket => {
-        const session = new GDBDebugSession(this.terminal, this.outputChannel);
+        const session = new DebugSession(this.terminal, this.outputChannel);
         session.setRunAsServer(true);
         session.start(<NodeJS.ReadableStream>socket, socket);
       }).listen(0);
@@ -64,6 +64,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
     return config;
   }
 }
+
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(

@@ -33,22 +33,24 @@ These are all of the settings currently supported:
 
 | Configuration Option  | Required | Description                                                              |
 | --------------------- |----------|--------------------------------------------------------------------------|
-| `args`                | No       | Array of arguments to pass to debuggee                                   |
-| `cwd`                 | No       | The directory in which to start GDB                                      |
-| `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
-| `debugger`            | No       | Path to GDB executable                                                   |
-| `env`                 | No       | Key value pairs of environment variables to set in debugging shell       |
-| `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal     |
-| `program`             | Yes      | Path to program to debug                                                 |
-| `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries    |
-| `startupCmds`         | No       | Array of GDB commands to run at start                                    |
-| `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
+| `args`                | No       | Array of arguments to pass to debuggee<br>```["arg1", "arg2", "arg3"]``` |
+| `cwd`                 | No       | The directory in which to start GDB<br>```"someOptionalDirectory"```     |
+| `debug`               | No       | Verbosity of logging.<br>```"off"\|"basic"\|"verbose"```                 |
+| `debugger`            | No       | Path to GDB executable<br>```"/absolute/path/to/gdb"```                  |
+| `env`                 | No       | Key value pairs of environment variables to set in debugging shell<br>```{"name1": "value1", "name2": "value2"}``` |
+| `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal<br>```true\|false``` |
+| `program`             | Yes      | Path to program to debug<br>```"path/to/executable"```                   |
+| `request`             | Yes      | Set this to `launch`                                                     |
+| `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries<br>```["solib1.so", "solib2.so"]``` |
+| `startupCmds`         | No       | Array of GDB commands to run at start<br>```["gdb_command", "gdb_command2"]``` |
+| `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints<br>```true\|false``` |
 
 
 #### Additional Notes
 - When using the `sharedLibraries` configuration setting, your `.gdbinit` setting for `auto-solib-add` will be overwritten to be `false`. The debug adapter will listen for shared library load events and only proceed to `sharedlibrary <name>` if that file is in your whitelist.
 - When setting the `externalConsole` setting to `true`, hitting `CTRL+C` in the integrated terminal will not abort the debug target.
 - The `startupCmds` commands will run after those in your `.gdbinit` file have run.
+- Environment variables are available to both the debugger and inferior process
 
 ### Attach Requests
 
@@ -57,6 +59,7 @@ These are all of the settings currently supported:
 | `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
+| `request`             | Yes      | Set this to `attach`                                                     |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
 
 ### Building from Source
