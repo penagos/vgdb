@@ -1,6 +1,6 @@
 # vGDB | Visual Studio Code GDB Debug Adapter
 
-**v 0.1.0.0 os actively being developed and is slated for release in mid October with disassembly support, register support and numerous bug fixes**
+**v 0.1.0.0 is actively being developed and is slated for release in mid October with disassembly support, register support and numerous bug fixes. Please see `CHANGELOG.md` for additional information.**
 
 A native typescript implementation of a debug adapter for GDB for use in Visual Studio Code. Tested on Linux, Windows support is untested. **This extension is under active development**
 
@@ -65,9 +65,9 @@ These are all of the settings currently supported:
 ### Building from Source
 
 It's recommended that you use one of the published VSIX files on the releases tab, but you can also build the extension from source. To compile/package the extension yourself, you'll need to run the following commands:
+
 ```
 npm install
-npm run compile
 vsce package
 ```
 
