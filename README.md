@@ -38,6 +38,7 @@ These are all of the settings currently supported:
 | `env`                 | No       | Key value pairs of environment variables to set in debugging shell<br>```{"name1": "value1", "name2": "value2"}``` |
 | `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal<br>```true\|false``` |
 | `program`             | Yes      | Path to program to debug<br>```"path/to/executable"```                   |
+| `request`             | Yes      | Set this to `launch`                                                     |
 | `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries<br>```["solib1.so", "solib2.so"]``` |
 | `startupCmds`         | No       | Array of GDB commands to run at start<br>```["gdb_command", "gdb_command2"]``` |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints<br>```true\|false``` |
@@ -56,6 +57,7 @@ These are all of the settings currently supported:
 | `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
 | `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
+| `request`             | Yes      | Set this to `attach`                                                     |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
 
 ### Building from Source
