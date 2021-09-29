@@ -3,7 +3,7 @@
 [![Rating](https://vsmarketplacebadge.apphb.com/rating-short/penagos.vgdb.svg)](https://marketplace.visualstudio.com/items?itemName=penagos.vgdb&ssr=false#review-details)
 # vGDB | Visual Studio Code GDB Debug Adapter
 
-**v 0.1.0.0 is actively being developed and is slated for release in early October with disassembly support, register support and numerous bug fixes. Please see `CHANGELOG.md` for additional information.**
+**v 0.1.0.0 is actively being developed and is slated for release on the Visual Studio Marketplace on October 5, 2021 with disassembly support, register support and numerous bug fixes. This version is now LIVE under the GitHub releases section. Please see `CHANGELOG.md` for additional information.**
 
 A native typescript implementation of a debug adapter for GDB for use in Visual Studio Code. Tested on Linux, Windows support is untested. **This extension is under active development**
 
