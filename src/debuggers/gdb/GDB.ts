@@ -597,6 +597,8 @@ export class GDB extends Debugger {
 
       if (breakpoint.condition) {
         cmd = `-c ${breakpoint.condition} ${cmd}`;
+      } else if (breakpoint.hitCondition) {
+        cmd = `-i ${breakpoint.hitCondition} ${cmd}`;
       }
 
       return `-break-insert ${cmd}`;
