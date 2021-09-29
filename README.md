@@ -8,14 +8,20 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 
 - Debugging on Linux (Windows and Mac support untested)
 - Launch target in integrated Visual Studio Code terminal or external terminal
-- Conditional breakpoints
-- Debug Console prompt accepts native GDB commands
+- Conditional breakpoints (break on condition and hit count)
+- Disassembly viewing and stepping
+- Command completion
+- Reverse debugging (on supported CPUs / kernels)
+- Variable watches
+- Viewing of register values
+- Debug Console prompt accepts native GDB commands (as well as MI commands)
 - Commands issued in the debug console will automatically pause and resume inferior process
 - Honors deferred symbol loading settings in `.gdbinit`
-- Support for lazy symbol loading as specified in launch configuration
-- Support for setting environment variables
-- Supports attach requests
-- Supports remoteSSH
+- Support for lazy (deferred) symbol loading
+- Environment variables
+- Attach requests
+- Works with remoteSSH
+- Small and written in Typescript only
 
 ## Quick Start
 
