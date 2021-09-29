@@ -640,7 +640,7 @@ export class GDB extends Debugger {
       let cmd = `-f ${fileName}:${breakpoint.line}`;
 
       if (breakpoint.condition) {
-        cmd = `-c ${breakpoint.condition} ${cmd}`;
+        cmd = `-c "${this.escapeQuotes(breakpoint.condition)}" ${cmd}`;
       } else if (breakpoint.hitCondition) {
         cmd = `-i ${breakpoint.hitCondition} ${cmd}`;
       }
