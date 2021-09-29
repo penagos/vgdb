@@ -26,6 +26,9 @@ A native typescript implementation of a debug adapter for GDB for use in Visual 
 - Works with remoteSSH
 - Small and written in Typescript only
 
+## Installation
+
+You can either download vGDB from within VSCode's Extensions pane (recommended), get it from the Extension marketplace, download the latest bundled VSIX package from the releases section on GitHub or build from source (instructions below).
 ## Quick Start
 
 vGDB ships with a sample launch configuration snippet you can use to quickly get started. Assuming your executable is named `a.out`, getting started is as easy as:
