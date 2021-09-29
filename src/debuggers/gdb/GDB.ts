@@ -102,7 +102,7 @@ export class GDB extends Debugger {
             this.handleParsedResult(record);
           }
         } catch (error: unknown) {
-          this.emit(EVENT_ERROR_FATAL);
+          this.emit(EVENT_ERROR_FATAL, error);
         }
       });
     }
@@ -176,6 +176,12 @@ export class GDB extends Debugger {
           {
             const stoppedReason = record.getResult('reason');
             this.threadID = parseInt(record.getResult('thread-id'));
+
+            // No stopped reason is emitted when reverse debugging occurrs
+            if (!stoppedReason && this.enableReverseDebugging) {
+              this.emit(EVENT_BREAKPOINT_HIT, this.threadID);
+              return;
+            }
 
             switch (stoppedReason) {
               case EVENT_BREAKPOINT_HIT:
@@ -257,11 +263,44 @@ export class GDB extends Debugger {
 
   public launchInferior(): Promise<boolean> {
     return new Promise(resolve => {
-      this.sendCommand('-gdb-set target-async on').then(() => {
-        this.sendCommand('-exec-run').then(() => {
-          resolve(true);
+      // If reverse debugging is enabled, start the process but immediately break
+      // to record the underlying inferior. Note that as of GDB 8.1, there is
+      // a starti instruction which fulfills this exact requirement, but we
+      // cannot assume the underlying debugger is always at least this version
+      // To work around this, we attempt to set a breakpoint at address 0x0
+      // to force the debugger to stop, issue the record command, delete the
+      // breakpoint and then resume execution. This idea is taken from:
+      // https://reverseengineering.stackexchange.com/questions/8724/set-a-breakpoint-on-gdb-entry-point-for-stripped-pie-binaries-without-disabling/8748#8748
+      if (this.enableReverseDebugging) {
+        this.sendCommand('-break-insert main').then(
+          (breakpoint: OutputRecord) => {
+            const bkptNumber = parseInt(breakpoint.getResult('bkpt').number);
+
+            this.sendCommand('-exec-run').then(() => {
+              this.sendCommand('record').then(() => {
+                this.sendCommand(`-break-delete ${bkptNumber}`).then(() => {
+                  this.continue().then(() => {
+                    // It is important that we send this command LAST in this
+                    // sequence as this will affect the very intricate structure
+                    // of commands we've issued prior. Running this first will
+                    // cause us to issue the record command prior to hitting the
+                    // start breakpoint
+                    this.sendCommand('-gdb-set target-async on').then(() => {
+                      resolve(true);
+                    });
+                  });
+                });
+              });
+            });
+          }
+        );
+      } else {
+        this.sendCommand('-gdb-set target-async on').then(() => {
+          this.sendCommand('-exec-run').then(() => {
+            resolve(true);
+          });
         });
-      });
+      }
     });
   }
 
@@ -294,6 +333,11 @@ export class GDB extends Debugger {
     } else {
       return this.sendCommand('-exec-continue');
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public reverseContinue(threadID?: number): Promise<any> {
+    return this.sendCommand('rc');
   }
 
   public getStackTrace(threadID: number): Promise<DebugProtocol.StackFrame[]> {
@@ -649,6 +693,11 @@ export class GDB extends Debugger {
 
   public stepOut(threadID: number): Promise<OutputRecord> {
     return this.sendCommand(`-exec-finish --thread ${threadID}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public stepBack(threadID: number): Promise<OutputRecord> {
+    return this.sendCommand('reverse-step');
   }
 
   public startInferior(): Promise<any> {

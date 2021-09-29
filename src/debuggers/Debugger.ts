@@ -104,7 +104,8 @@ export abstract class Debugger extends EventEmitter {
 
   constructor(
     private readonly terminal: Terminal,
-    private readonly outputChannel: OutputChannel
+    private readonly outputChannel: OutputChannel,
+    protected readonly enableReverseDebugging: boolean
   ) {
     super();
   }
@@ -161,10 +162,11 @@ export abstract class Debugger extends EventEmitter {
   public abstract spawnDebugger(): Promise<boolean>;
   public abstract stepIn(threadID: number): Promise<OutputRecord>;
   public abstract stepOut(threadID: number): Promise<OutputRecord>;
+  public abstract stepBack(threadID: number): Promise<OutputRecord>;
   public abstract startInferior(): Promise<any>;
   public abstract terminate(): Promise<any>;
   public abstract launchInferior(): Promise<any>;
-
+  public abstract reverseContinue(threadID: number): Promise<OutputRecord>;
   protected abstract createDebuggerLaunchCommand(): string;
   protected abstract handleInferiorOutput(data: any): void;
   protected abstract handlePostDebuggerStartup(): Promise<boolean>;

@@ -112,7 +112,15 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments
   ): Promise<void> {
-    this.debugger = new GDB(this.terminal, this.outputChannel);
+    const enableReverseDebugging = this.getSettingValue(
+      'enableReverseDebugging'
+    );
+
+    this.debugger = new GDB(
+      this.terminal,
+      this.outputChannel,
+      enableReverseDebugging
+    );
     this.bindDebuggerEvents();
 
     response.body = {
@@ -125,7 +133,7 @@ export class DebugSession extends LoggingDebugSession {
       supportsCompletionsRequest: this.getSettingValue(
         'enableCommandCompletions'
       ),
-      supportsStepBack: this.getSettingValue('enableReverseDebugging'),
+      supportsStepBack: enableReverseDebugging,
     };
 
     this.sendResponse(response);
@@ -274,11 +282,30 @@ export class DebugSession extends LoggingDebugSession {
     });
   }
 
+  protected stepBackRequest(
+    response: DebugProtocol.StepBackResponse,
+    args: DebugProtocol.StepBackArguments
+  ): void {
+    // TODO: hook up granularity to support reverse debugging at ASM level
+    this.debugger.stepBack(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
   protected continueRequest(
     response: DebugProtocol.ContinueResponse,
     args: DebugProtocol.ContinueArguments
   ): void {
     this.debugger.continue(args.threadId).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
+  protected reverseContinueRequest(
+    response: DebugProtocol.ReverseContinueResponse,
+    args: DebugProtocol.ReverseContinueArguments
+  ): void {
+    this.debugger.reverseContinue(args.threadId).then(() => {
       this.sendResponse(response);
     });
   }
@@ -429,10 +456,12 @@ export class DebugSession extends LoggingDebugSession {
 
   private bindDebuggerEvents(): void {
     // Bind error handler for unexpected GDB errors
-    this.debugger.on(EVENT_ERROR_FATAL, (tid: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.debugger.on(EVENT_ERROR_FATAL, (error: any) => {
       this.error(
         'vGDB has encountered a fatal error. Please check the vGDB output channel and create an issue at http://www.github.com/penagos/vgdb/issues'
       );
+      this.error(error);
       this.sendEvent(new TerminatedEvent());
     });
 

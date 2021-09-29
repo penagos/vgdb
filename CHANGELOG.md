@@ -15,6 +15,7 @@ This release includes numerous bug fixes and additional features as outlined bel
 - Correctly handle deferred symbol loading
 - Correctly handle aggregate variables in watch pane, variables pane and mouse hovers
 - Support (optional) MI command syntax in debug console
+- Support hit counts in conditional breakpoints
 - Upgrade dependencies
 - Refactor debugger interface for faster performance
 - Other minor bug fixes and stability improvements
