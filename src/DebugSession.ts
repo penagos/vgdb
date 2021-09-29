@@ -134,6 +134,7 @@ export class DebugSession extends LoggingDebugSession {
         'enableCommandCompletions'
       ),
       supportsStepBack: enableReverseDebugging,
+      supportsFunctionBreakpoints: false,
     };
 
     this.sendResponse(response);
