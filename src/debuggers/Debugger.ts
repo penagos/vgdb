@@ -104,8 +104,6 @@ export abstract class Debugger extends EventEmitter {
   // Should any debug logging occur?
   protected debug = false;
 
-  private debuggerTerminal: TerminalWindow;
-
   constructor(
     private readonly terminal: Terminal,
     private readonly outputChannel: OutputChannel,
@@ -231,13 +229,10 @@ export abstract class Debugger extends EventEmitter {
     const launchCommand = this.createDebuggerLaunchCommand();
 
     if (this.useExternalTerminal) {
-      this.debuggerTerminal = new ExternalTerminal(launchCommand);
+      new ExternalTerminal(launchCommand);
     } else {
-      this.debuggerTerminal = new IntegratedTerminal(launchCommand, terminal);
+      new IntegratedTerminal(launchCommand, terminal);
     }
-
-    // TODO remove me
-    console.log(this.debuggerTerminal);
   }
 
   private createIOPipeNames() {
