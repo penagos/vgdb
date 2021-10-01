@@ -78,6 +78,7 @@ export abstract class Debugger extends EventEmitter {
   protected debuggerPath: string;
   protected environmentVariables: string[];
   protected inferiorProgram: string | number;
+  protected attachPID: number;
   protected startupCommands: string[];
   protected userSpecifiedDebuggerArguments: string[];
   protected useAbsoluteFilePathsForBreakpoints: boolean;

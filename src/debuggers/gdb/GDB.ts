@@ -178,7 +178,10 @@ export class GDB extends Debugger {
             this.threadID = parseInt(record.getResult('thread-id'));
 
             // No stopped reason is emitted when reverse debugging occurrs
-            if (!stoppedReason && this.enableReverseDebugging) {
+            if (
+              !stoppedReason &&
+              (this.attachPID || this.enableReverseDebugging)
+            ) {
               this.emit(EVENT_BREAKPOINT_HIT, this.threadID);
               return;
             }
@@ -296,9 +299,16 @@ export class GDB extends Debugger {
         );
       } else {
         this.sendCommand('-gdb-set target-async on').then(() => {
-          this.sendCommand('-exec-run').then(() => {
-            resolve(true);
-          });
+          // Attach or launch inferior
+          if (this.attachPID) {
+            this.sendCommand(`attach ${this.attachPID}`).then(() => {
+              resolve(true);
+            });
+          } else {
+            this.sendCommand('-exec-run').then(() => {
+              resolve(true);
+            });
+          }
         });
       }
     });
@@ -705,6 +715,11 @@ export class GDB extends Debugger {
   }
 
   public terminate(): Promise<any> {
+    // If we attached, free the ptrace
+    if (this.attachPID) {
+      this.sendCommand('detach');
+    }
+
     return this.sendCommand('-gdb-exit');
   }
 
@@ -741,6 +756,7 @@ export class GDB extends Debugger {
 
     // Append any user specified arguments to the inferior
     if (typeof this.inferiorProgram === 'string') {
+      // Launch request
       if (this.userSpecifiedDebuggerArguments) {
         this.debuggerLaunchArguments.push('--args');
         this.debuggerLaunchArguments.push(this.inferiorProgram);
@@ -751,6 +767,9 @@ export class GDB extends Debugger {
         this.debuggerLaunchArguments.push(this.inferiorProgram);
         this.debuggerLaunchArguments = this.debuggerLaunchArguments.reverse();
       }
+    } else {
+      // Attach request
+      this.attachPID = this.inferiorProgram;
     }
 
     return `bash -c "${this.createEnvironmentVariablesSetterCommand()} trap '' 2 ; ${

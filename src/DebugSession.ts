@@ -155,6 +155,15 @@ export class DebugSession extends LoggingDebugSession {
     });
   }
 
+  protected attachRequest(
+    response: DebugProtocol.AttachResponse,
+    args: AttachRequestArguments
+  ) {
+    this.debugger.spawn(args).then(() => {
+      this.sendResponse(response);
+    });
+  }
+
   protected configurationDoneRequest(
     response: DebugProtocol.ConfigurationDoneResponse,
     args: DebugProtocol.ConfigurationDoneArguments
