@@ -100,6 +100,10 @@ export abstract class Debugger extends EventEmitter {
   // while the output handle is a normal fd
   protected inferiorInputHandle: WriteStream;
   protected inferiorOutputHandle: any;
+
+  // Should any debug logging occur?
+  protected debug = false;
+
   private debuggerTerminal: TerminalWindow;
 
   constructor(
@@ -113,9 +117,6 @@ export abstract class Debugger extends EventEmitter {
   public spawn(
     args: LaunchRequestArguments | AttachRequestArguments
   ): Promise<boolean> {
-    // TODO: removeme
-    console.log(this.outputChannel);
-
     this.applyArguments(args);
     this.createIOPipeNames();
     this.createTerminalAndLaunchDebugger(this.terminal);
@@ -176,7 +177,9 @@ export abstract class Debugger extends EventEmitter {
   }
 
   protected log(text: string) {
-    this.outputChannel.appendLine(text);
+    if (this.debug) {
+      this.outputChannel.appendLine(text);
+    }
   }
 
   public sanitize(text: string, MI?: boolean): string {
@@ -217,6 +220,7 @@ export abstract class Debugger extends EventEmitter {
     this.useAbsoluteFilePathsForBreakpoints = args.useAbsoluteFilePaths || true;
     this.userSpecifiedDebuggerArguments = args.args || [];
     this.sharedLibraries = args.sharedLibraries || [];
+    this.debug = args.debug || false;
   }
 
   private createTerminalAndLaunchDebugger(terminal: Terminal) {
