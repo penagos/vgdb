@@ -108,10 +108,10 @@ export class DebugSession extends LoggingDebugSession {
    * Create a new debugger and return all capabilities supported by the debug
    * adapter (common functionality across all implemented debuggers)
    */
-  protected async initializeRequest(
+  protected initializeRequest(
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments
-  ): Promise<void> {
+  ) {
     const enableReverseDebugging = this.getSettingValue(
       'enableReverseDebugging'
     );
@@ -146,7 +146,7 @@ export class DebugSession extends LoggingDebugSession {
    * the actual inferior process. Such process must be started at the end of the
    * configuration sequence, after breakpoints have been set.
    */
-  protected async launchRequest(
+  protected launchRequest(
     response: DebugProtocol.LaunchResponse,
     args: LaunchRequestArguments
   ) {
@@ -155,7 +155,7 @@ export class DebugSession extends LoggingDebugSession {
     });
   }
 
-  protected async configurationDoneRequest(
+  protected configurationDoneRequest(
     response: DebugProtocol.ConfigurationDoneResponse,
     args: DebugProtocol.ConfigurationDoneArguments
   ) {
