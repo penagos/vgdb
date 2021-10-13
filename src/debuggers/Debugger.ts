@@ -159,6 +159,9 @@ export abstract class Debugger extends EventEmitter {
     fileName: string,
     breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]>;
+  public abstract setExceptionBreakpoints(
+    
+  ): Promise<BreakPoint[]>;
   public abstract spawnDebugger(): Promise<boolean>;
   public abstract stepIn(threadID: number): Promise<OutputRecord>;
   public abstract stepOut(threadID: number): Promise<OutputRecord>;

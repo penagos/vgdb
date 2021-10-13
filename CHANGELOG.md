@@ -1,6 +1,11 @@
 # Release Notes
 **This extension is under active development**
 
+## 1.1.0 (October/31/2021) (Tentative)
+
+### Enhancements
+- Support setting breakpoints on caught/uncaught exceptions
+
 ## 1.0.0 (September/30/2021)
 
 This release includes numerous bug fixes and additional features as outlined below:

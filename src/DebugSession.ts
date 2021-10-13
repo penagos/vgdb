@@ -44,6 +44,11 @@ export enum DebugLoggingLevel {
   VERBOSE = 'verbose',
 }
 
+export enum ExceptionRequest {
+  CAUGHT = 'catch',
+  UNCAUGHT = 'throw',
+}
+
 export interface LaunchRequestArguments
   extends DebugProtocol.LaunchRequestArguments {
   /** Absolute program to path to debug */
@@ -130,6 +135,18 @@ export class DebugSession extends LoggingDebugSession {
       supportsDisassembleRequest: true,
       supportsSteppingGranularity: true,
       supportsExceptionInfoRequest: true,
+      supportsExceptionFilterOptions: true,
+      supportsExceptionOptions: true,
+      exceptionBreakpointFilters: [
+        {
+          filter: ExceptionRequest.CAUGHT,
+          label: 'Caught Exceptions',
+        },
+        {
+          filter: ExceptionRequest.UNCAUGHT,
+          label: 'Uncaught Exceptions',
+        },
+      ],
       supportsCompletionsRequest: this.getSettingValue(
         'enableCommandCompletions'
       ),
@@ -357,6 +374,13 @@ export class DebugSession extends LoggingDebugSession {
     }
 
     this.sendResponse(response);
+  }
+
+  protected setExceptionBreakPointsRequest(
+    response: DebugProtocol.SetExceptionBreakpointsResponse,
+    args: DebugProtocol.SetExceptionBreakpointsArguments
+  ): void {
+    this.debugger.setExceptionBreakpoints()
   }
 
   protected completionsRequest(
