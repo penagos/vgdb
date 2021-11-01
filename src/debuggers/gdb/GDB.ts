@@ -772,7 +772,9 @@ export class GDB extends Debugger {
       this.attachPID = this.inferiorProgram;
     }
 
-    return `bash -c "${this.createEnvironmentVariablesSetterCommand()} trap '' 2 ; ${
+    return `bash -c "cd ${
+      this.cwd
+    }; ${this.createEnvironmentVariablesSetterCommand()} trap '' 2 ; ${
       this.debuggerPath
     } ${this.debuggerLaunchArguments.join(' ')} < ${
       this.inferiorInputFileName
