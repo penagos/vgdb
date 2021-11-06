@@ -16,7 +16,7 @@ import {
 } from 'vscode-debugadapter';
 
 import * as vscode from 'vscode';
-import {OutputChannel, Terminal} from 'vscode';
+import {OutputChannel} from 'vscode';
 import {GDB} from './debuggers/gdb/GDB';
 import {
   Debugger,
@@ -97,10 +97,7 @@ export interface AttachRequestArguments
 export class DebugSession extends LoggingDebugSession {
   private debugger: Debugger;
 
-  constructor(
-    private readonly terminal: Terminal,
-    private readonly outputChannel: OutputChannel
-  ) {
+  constructor(private readonly outputChannel: OutputChannel) {
     super();
   }
 
@@ -116,11 +113,7 @@ export class DebugSession extends LoggingDebugSession {
       'enableReverseDebugging'
     );
 
-    this.debugger = new GDB(
-      this.terminal,
-      this.outputChannel,
-      enableReverseDebugging
-    );
+    this.debugger = new GDB(this.outputChannel, enableReverseDebugging);
     this.bindDebuggerEvents();
 
     response.body = {
@@ -150,7 +143,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.LaunchResponse,
     args: LaunchRequestArguments
   ) {
-    this.debugger.spawn(args).then(() => {
+    this.debugger.spawn(args, this).then(() => {
       this.sendResponse(response);
     });
   }
@@ -159,7 +152,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse,
     args: AttachRequestArguments
   ) {
-    this.debugger.spawn(args).then(() => {
+    this.debugger.spawn(args, this).then(() => {
       this.sendResponse(response);
     });
   }

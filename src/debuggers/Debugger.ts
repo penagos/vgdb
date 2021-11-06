@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {exec, spawn} from 'child_process';
+import {exec} from 'child_process';
 import {EventEmitter} from 'events';
 import * as fs from 'fs';
 import {WriteStream} from 'fs';
 import * as ts from 'tail-stream';
-import {CompletionItem, OutputChannel, Terminal} from 'vscode';
+import {CompletionItem, OutputChannel} from 'vscode';
 import {AttachRequestArguments, LaunchRequestArguments} from '../DebugSession';
-import {Breakpoint} from 'vscode-debugadapter';
+import {Breakpoint, DebugSession} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {OutputRecord} from './gdb/parser/OutputRecord';
 import {ResultRecord} from './gdb/parser/ResultRecord';
+import path = require('path');
 
 export const SCOPE_LOCAL = 100000;
 export const SCOPE_REGISTERS = 200000;
@@ -29,50 +30,6 @@ export class DebuggerVariable {
   public referenceID: number;
   public value: string;
 }
-
-// Used as an abstraction for integrated/non-integrated terminals
-export abstract class TerminalWindow {
-  public abstract sendCommand(cmd: string): void;
-  public abstract destroy(): void;
-  protected terminal: any;
-}
-
-export class IntegratedTerminal extends TerminalWindow {
-  constructor(cmd: string, terminal: Terminal) {
-    super();
-    this.terminal = terminal;
-    this.sendCommand('clear');
-    this.sendCommand(cmd);
-    this.terminal.show(true);
-  }
-
-  public sendCommand(cmd: string) {
-    this.terminal.sendText(cmd);
-  }
-
-  public destroy() {
-    // Nothing needs to be done for integrated terminal
-  }
-}
-export class ExternalTerminal extends TerminalWindow {
-  constructor(cmd: string) {
-    super();
-    this.terminal = spawn('x-terminal-emulator', ['-e', cmd]);
-    this.terminal.on('error', () => {
-      console.log('Failed to open external terminal');
-    });
-  }
-
-  public sendCommand(cmd: string) {
-    this.terminal.stdin.write(`${cmd}\n`);
-  }
-
-  public destroy() {
-    // Close terminal if not done already
-    this.terminal.kill();
-  }
-}
-
 export abstract class Debugger extends EventEmitter {
   protected cwd: string;
   protected debuggerPath: string;
@@ -105,8 +62,10 @@ export abstract class Debugger extends EventEmitter {
   // Should any debug logging occur?
   protected debug = false;
 
+  // Is the debugger ready to start accepting commands?
+  protected isDebuggerReady = false;
+
   constructor(
-    private readonly terminal: Terminal,
     private readonly outputChannel: OutputChannel,
     protected readonly enableReverseDebugging: boolean
   ) {
@@ -114,13 +73,21 @@ export abstract class Debugger extends EventEmitter {
   }
 
   public spawn(
-    args: LaunchRequestArguments | AttachRequestArguments
+    args: LaunchRequestArguments | AttachRequestArguments,
+    debugSession: DebugSession
   ): Promise<boolean> {
     this.applyArguments(args);
     this.createIOPipeNames();
-    this.createTerminalAndLaunchDebugger(this.terminal);
-    this.createAndBindIOPipeHandles();
-    return this.runStartupCommands();
+
+    return new Promise(resolve => {
+      this.createAndBindIOPipeHandles().then(() => {
+        this.createTerminalAndLaunchDebugger(debugSession).then(() => {
+          this.runStartupCommands().then(() => {
+            this.handleInferiorInputCreated().then(() => resolve(true));
+          });
+        });
+      });
+    });
   }
 
   public getLastException(): DebuggerException | null {
@@ -167,7 +134,7 @@ export abstract class Debugger extends EventEmitter {
   public abstract terminate(): Promise<any>;
   public abstract launchInferior(): Promise<any>;
   public abstract reverseContinue(threadID: number): Promise<OutputRecord>;
-  protected abstract createDebuggerLaunchCommand(): string;
+  protected abstract createDebuggerLaunchCommand(): string[];
   protected abstract handleInferiorOutput(data: any): void;
   protected abstract handlePostDebuggerStartup(): Promise<boolean>;
 
@@ -203,7 +170,7 @@ export abstract class Debugger extends EventEmitter {
 
   protected getNormalizedFileName(fileName: string): string {
     if (!this.useAbsoluteFilePathsForBreakpoints) {
-      fileName = fileName.replace(this.cwd, '').replace(/^\//, '');
+      fileName = path.basename(fileName);
     }
 
     return fileName;
@@ -216,24 +183,44 @@ export abstract class Debugger extends EventEmitter {
     this.inferiorProgram = args.program;
     this.startupCommands = args.startupCmds || [];
     this.useExternalTerminal = args.externalConsole || false;
-    this.useAbsoluteFilePathsForBreakpoints = args.useAbsoluteFilePaths || true;
+    this.useAbsoluteFilePathsForBreakpoints = args.useAbsoluteFilePaths || false;
     this.userSpecifiedDebuggerArguments = args.args || [];
     this.sharedLibraries = args.sharedLibraries || [];
     this.debug = args.debug || false;
   }
 
-  private createTerminalAndLaunchDebugger(terminal: Terminal) {
+  private createTerminalAndLaunchDebugger(
+    debugSession: DebugSession
+  ): Promise<boolean> {
     // We cannot simply send all commands to the terminal and assume the
     // user's default shell is bash. Instead we will wrap all cmds in a
     // string and explicitly invoke the bash shell
-    fs.writeFile(this.inferiorOutputFileName, '', () => {});
-    const launchCommand = this.createDebuggerLaunchCommand();
 
-    if (this.useExternalTerminal) {
-      new ExternalTerminal(launchCommand);
-    } else {
-      new IntegratedTerminal(launchCommand, terminal);
-    }
+    return new Promise(resolve => {
+      const env = {};
+      Object.keys(this.environmentVariables).forEach((key: string) => {
+        const value = this.environmentVariables[key];
+        env[key] = value;
+      });
+
+      debugSession.runInTerminalRequest(
+        {
+          kind: 'integrated',
+          cwd: this.cwd,
+          title: 'vGDB',
+          args: this.createDebuggerLaunchCommand(),
+          env,
+        },
+        5000,
+        response => {
+          if (response.success) {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        }
+      );
+    });
   }
 
   private createIOPipeNames() {
@@ -245,7 +232,7 @@ export abstract class Debugger extends EventEmitter {
     exec(`mkfifo ${this.inferiorInputFileName}`);
   }
 
-  private createAndBindIOPipeHandles() {
+  private createAndBindIOPipeHandles(): Promise<boolean> {
     // Spawn the GDB process in the integrated terminal. In order to
     // correctly separate inferior output from GDB output and pipe
     // them to the correct handlers we use some hacks:
@@ -259,20 +246,22 @@ export abstract class Debugger extends EventEmitter {
     // (3) We redirect all stdin to GDB through another FIFO pipe which
     //     we will keep open throughout the entirety of the debug
     //     session (to prevent premature debugger exit).
-    this.inferiorInputHandle = fs.createWriteStream(
-      this.inferiorInputFileName,
-      {flags: 'a'}
-    );
-    this.inferiorOutputHandle = ts.createReadStream(
-      this.inferiorOutputFileName
-    );
+    return new Promise(resolve => {
+      fs.writeFileSync(this.inferiorOutputFileName, '');
+      this.inferiorInputHandle = fs.createWriteStream(
+        this.inferiorInputFileName,
+        {flags: 'a'}
+      );
+      this.inferiorOutputHandle = ts.createReadStream(
+        this.inferiorOutputFileName
+      );
 
-    this.inferiorOutputHandle.on('data', (data: any) =>
-      this.handleInferiorOutput(data)
-    );
-    this.inferiorInputHandle.on('open', () =>
-      this.handleInferiorInputCreated()
-    );
+      this.inferiorOutputHandle.on('data', (data: any) =>
+        this.handleInferiorOutput(data)
+      );
+
+      resolve(true);
+    });
   }
 
   /**
@@ -284,7 +273,10 @@ export abstract class Debugger extends EventEmitter {
       Promise.all([
         this.runStartupCommands(),
         this.handlePostDebuggerStartup(),
-      ]).then(() => resolve(true));
+      ]).then(() => {
+        this.isDebuggerReady = true;
+        resolve(true);
+      });
     });
   }
 

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import path = require('path');
+import {clearInterval} from 'timers';
 import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
@@ -659,41 +660,52 @@ export class GDB extends Debugger {
     };
 
     return new Promise(resolve => {
-      this.clearBreakpoints(fileName).then(() => {
-        const normalizedFileName = this.getNormalizedFileName(fileName);
-        const breakpointsPending: Promise<void>[] = [];
-        const breakpointsConfirmed: Breakpoint[] = [];
-        const breakpointIDs: number[] = [];
+      if (this.isDebuggerReady) {
+        this.clearBreakpoints(fileName).then(() => {
+          const normalizedFileName = this.getNormalizedFileName(fileName);
+          const breakpointsPending: Promise<void>[] = [];
+          const breakpointsConfirmed: Breakpoint[] = [];
+          const breakpointIDs: number[] = [];
 
-        // Send each breakpoint to GDB. As GDB replies with acknowledgements of
-        // the breakpoint being set, if the breakpoint has been bound to a source
-        // location, mark the breakpoint as being verified. Further, irregardless
-        // of whether or not a breakpoint has been bound to source, modify break
-        // conditions if/when applicable. Note that since we issue commands sequentially
-        // and the debugger will resolve commands in order, we fulfill the requirement
-        // that breakpoints be returned in the same order requested
-        breakpoints.forEach(breakpoint => {
-          breakpointsPending.push(
-            this.sendCommand(
-              getBreakpointInsertionCommand(normalizedFileName, breakpoint)
-            ).then((breakpoint: OutputRecord) => {
-              const bkpt = breakpoint.getResult('bkpt');
-              breakpointsConfirmed.push(
-                new Breakpoint(!bkpt.pending, bkpt.line)
-              );
+          // Send each breakpoint to GDB. As GDB replies with acknowledgements of
+          // the breakpoint being set, if the breakpoint has been bound to a source
+          // location, mark the breakpoint as being verified. Further, irregardless
+          // of whether or not a breakpoint has been bound to source, modify break
+          // conditions if/when applicable. Note that since we issue commands sequentially
+          // and the debugger will resolve commands in order, we fulfill the requirement
+          // that breakpoints be returned in the same order requested
+          breakpoints.forEach(breakpoint => {
+            breakpointsPending.push(
+              this.sendCommand(
+                getBreakpointInsertionCommand(normalizedFileName, breakpoint)
+              ).then((breakpoint: OutputRecord) => {
+                const bkpt = breakpoint.getResult('bkpt');
+                breakpointsConfirmed.push(
+                  new Breakpoint(!bkpt.pending, bkpt.line)
+                );
 
-              breakpointIDs.push(parseInt(bkpt.number));
-            })
-          );
+                breakpointIDs.push(parseInt(bkpt.number));
+              })
+            );
+          });
+
+          Promise.all(breakpointsPending).then(() => {
+            // Only return breakpoints GDB has actually bound to a source. Others
+            // will be marked verified as the debugger binds them later on
+            this.breakpoints.set(fileName, breakpointIDs);
+            resolve(breakpointsConfirmed);
+          });
         });
-
-        Promise.all(breakpointsPending).then(() => {
-          // Only return breakpoints GDB has actually bound to a source. Others
-          // will be marked verified as the debugger binds them later on
-          this.breakpoints.set(fileName, breakpointIDs);
-          resolve(breakpointsConfirmed);
-        });
-      });
+      } else {
+        const intv = setInterval(() => {
+          if (this.isDebuggerReady) {
+            clearInterval(intv);
+            this.setBreakpoints(fileName, breakpoints).then(bps =>
+              resolve(bps)
+            );
+          }
+        }, 500);
+      }
     });
   }
 
@@ -744,7 +756,7 @@ export class GDB extends Debugger {
     });
   }
 
-  protected createDebuggerLaunchCommand(): string {
+  protected createDebuggerLaunchCommand(): string[] {
     // This idea is borrowed from the Microsoft cpptools VSCode extension.
     // It really is the only conceivable way to support running in the
     // integrated terminal. We spin on the GDB process to prevent the shell
@@ -753,34 +765,29 @@ export class GDB extends Debugger {
     // issue the corresponding TerminatedEvent and take down GDB. We issue
     // the +m command to hide the background "done" message when GDB
     // finishes debugging the inferior. These hacks probably won't work on Windows
+    let args = [this.debuggerPath];
+    args = args.concat(this.debuggerLaunchArguments);
 
     // Append any user specified arguments to the inferior
     if (typeof this.inferiorProgram === 'string') {
       // Launch request
       if (this.userSpecifiedDebuggerArguments) {
-        this.debuggerLaunchArguments.push('--args');
-        this.debuggerLaunchArguments.push(this.inferiorProgram);
-        this.debuggerLaunchArguments = this.debuggerLaunchArguments.concat(
-          this.userSpecifiedDebuggerArguments
-        );
+        args.push('--args');
+        args.push(this.inferiorProgram);
+        args = args.concat(this.userSpecifiedDebuggerArguments);
       } else {
-        this.debuggerLaunchArguments.push(this.inferiorProgram);
-        this.debuggerLaunchArguments = this.debuggerLaunchArguments.reverse();
+        args.push(this.inferiorProgram);
       }
     } else {
       // Attach request
+      // TODO: revisit this
       this.attachPID = this.inferiorProgram;
     }
 
-    return `bash -c "cd ${
-      this.cwd
-    }; ${this.createEnvironmentVariablesSetterCommand()} trap '' 2 ; ${
-      this.debuggerPath
-    } ${this.debuggerLaunchArguments.join(' ')} < ${
-      this.inferiorInputFileName
-    } > ${
-      this.inferiorOutputFileName
-    } & clear ; pid=$!; set +m ; wait $pid ; trap 2 ; echo ;"`;
+    args = args.concat(['<', this.inferiorInputFileName]);
+    args = args.concat(['>', this.inferiorOutputFileName]);
+
+    return args;
   }
 
   protected handlePostDebuggerStartup(): Promise<boolean> {
@@ -788,19 +795,10 @@ export class GDB extends Debugger {
       Promise.all([
         this.cacheRegisterNames(),
         this.deferSharedLibraryLoading(),
-      ]).then(() => resolve(true));
+      ]).then(() => {
+        resolve(true);
+      });
     });
-  }
-
-  private createEnvironmentVariablesSetterCommand(): string {
-    let bashCommand = '';
-
-    Object.keys(this.environmentVariables).forEach((key: string) => {
-      const value = this.environmentVariables[key];
-      bashCommand = bashCommand.concat(`export ${key}=${value};`, bashCommand);
-    });
-
-    return bashCommand;
   }
 
   private clearDebuggerVariables(): Promise<boolean> {
