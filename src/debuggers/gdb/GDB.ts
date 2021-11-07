@@ -769,19 +769,19 @@ export class GDB extends Debugger {
     args = args.concat(this.debuggerLaunchArguments);
 
     // Append any user specified arguments to the inferior
-    if (typeof this.inferiorProgram === 'string') {
+    if (this.type === 'launch') {
       // Launch request
       if (this.userSpecifiedDebuggerArguments) {
         args.push('--args');
-        args.push(this.inferiorProgram);
+        args.push(String(this.inferiorProgram));
         args = args.concat(this.userSpecifiedDebuggerArguments);
       } else {
-        args.push(this.inferiorProgram);
+        args.push(String(this.inferiorProgram));
       }
     } else {
       // Attach request
       // TODO: revisit this
-      this.attachPID = this.inferiorProgram;
+      this.attachPID = Number(this.inferiorProgram);
     }
 
     args = args.concat(['<', this.inferiorInputFileName]);

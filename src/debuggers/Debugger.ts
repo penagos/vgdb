@@ -65,6 +65,9 @@ export abstract class Debugger extends EventEmitter {
   // Is the debugger ready to start accepting commands?
   protected isDebuggerReady = false;
 
+  // Is this a launch or attach request?
+  protected type = '';
+
   constructor(
     private readonly outputChannel: OutputChannel,
     protected readonly enableReverseDebugging: boolean
@@ -77,13 +80,14 @@ export abstract class Debugger extends EventEmitter {
     debugSession: DebugSession
   ): Promise<boolean> {
     this.applyArguments(args);
-    this.createIOPipeNames();
 
     return new Promise(resolve => {
-      this.createAndBindIOPipeHandles().then(() => {
-        this.createTerminalAndLaunchDebugger(debugSession).then(() => {
-          this.runStartupCommands().then(() => {
-            this.handleInferiorInputCreated().then(() => resolve(true));
+      this.createIOPipeNames().then(() => {
+        this.createAndBindIOPipeHandles().then(() => {
+          this.createTerminalAndLaunchDebugger(debugSession).then(() => {
+            this.runStartupCommands().then(() => {
+              this.handleInferiorInputCreated().then(() => resolve(true));
+            });
           });
         });
       });
@@ -187,6 +191,7 @@ export abstract class Debugger extends EventEmitter {
     this.userSpecifiedDebuggerArguments = args.args || [];
     this.sharedLibraries = args.sharedLibraries || [];
     this.debug = args.debug || false;
+    this.type = args.request;
   }
 
   private createTerminalAndLaunchDebugger(
@@ -223,13 +228,17 @@ export abstract class Debugger extends EventEmitter {
     });
   }
 
-  private createIOPipeNames() {
+  private createIOPipeNames(): Promise<boolean> {
     this.inferiorInputFileName = this.generateRandomTmpFileName('In');
     this.inferiorOutputFileName = this.generateRandomTmpFileName('Out');
 
     // Create a UNIX pipe to the input file such that we can continually
     // write commands
-    exec(`mkfifo ${this.inferiorInputFileName}`);
+    return new Promise(resolve => {
+      exec(`mkfifo ${this.inferiorInputFileName}`).on('exit', () =>
+        resolve(true)
+      );
+    });
   }
 
   private createAndBindIOPipeHandles(): Promise<boolean> {
