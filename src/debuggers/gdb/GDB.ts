@@ -303,7 +303,32 @@ export class GDB extends Debugger {
           // Attach or launch inferior
           if (this.attachPID) {
             this.sendCommand(`attach ${this.attachPID}`).then(() => {
-              resolve(true);
+              // If deferred symbol loading is enabled, make sure we have debug symbols in memory
+              // if such libraries have already been loaded by the process prior to GDB attachment
+              if (this.sharedLibraries.length) {
+                const pending: Promise<OutputRecord>[] = [];
+
+                // Selectively load libraries
+                this.sharedLibraries.forEach(library => {
+                  pending.push(this.sendCommand(`sharedlibrary ${library}`));
+                });
+
+                Promise.all(pending).then(() => {
+                  resolve(true);
+                });
+              } else {
+                this.sendCommand('-gdb-show auto-solib-add').then(
+                  (result: OutputRecord) => {
+                    if (result.getResult('value') !== 'off') {
+                      this.sendCommand('sharedlibrary').then(() =>
+                        resolve(true)
+                      );
+                    } else {
+                      resolve(true);
+                    }
+                  }
+                );
+              }
             });
           } else {
             this.sendCommand('-exec-run').then(() => {
