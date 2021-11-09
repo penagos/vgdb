@@ -190,7 +190,8 @@ export abstract class Debugger extends EventEmitter {
     this.inferiorProgram = args.program;
     this.startupCommands = args.startupCmds || [];
     this.useExternalTerminal = args.externalConsole || false;
-    this.useAbsoluteFilePathsForBreakpoints = args.useAbsoluteFilePaths || false;
+    this.useAbsoluteFilePathsForBreakpoints =
+      args.useAbsoluteFilePaths || false;
     this.userSpecifiedDebuggerArguments = args.args || [];
     this.sharedLibraries = args.sharedLibraries || [];
     this.debug = args.debug || false;
