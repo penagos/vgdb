@@ -120,7 +120,10 @@ export abstract class Debugger extends EventEmitter {
     threadID: number,
     granularity: string
   ): Promise<OutputRecord>;
-  public abstract pause(threadID?: number): Promise<boolean>;
+  public abstract pause(
+    threadID?: number,
+    ignorePause?: boolean
+  ): Promise<boolean>;
   public abstract sendCommand(command: string): Promise<OutputRecord>;
   public abstract sendUserCommand(
     command: string,

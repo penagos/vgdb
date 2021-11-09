@@ -78,6 +78,8 @@ export class GDB extends Debugger {
   // Mapping of register numbers to their names
   private registers: string[] = [];
 
+  private ignorePause = false;
+
   public spawnDebugger(): Promise<boolean> {
     throw new Error('Method not implemented.');
   }
@@ -206,8 +208,10 @@ export class GDB extends Debugger {
                 break;
 
               case EVENT_SIGNAL:
-                this.lastException = new GDBException(record);
-                this.emit(EVENT_SIGNAL, this.threadID);
+                if (!this.ignorePause) {
+                  this.lastException = new GDBException(record);
+                  this.emit(EVENT_SIGNAL, this.threadID);
+                }
                 break;
 
               case EVENT_SOLIB_ADD:
@@ -364,6 +368,8 @@ export class GDB extends Debugger {
   }
 
   public continue(threadID?: number): Promise<any> {
+    this.ignorePause = false;
+
     if (threadID) {
       return this.sendCommand(`-exec-continue --thread ${threadID}`);
     } else {
@@ -582,11 +588,15 @@ export class GDB extends Debugger {
     }
   }
 
-  public pause(threadID?: number): Promise<boolean> {
+  public pause(threadID?: number, ignorePause?: boolean): Promise<boolean> {
     return new Promise(resolve => {
       if (this.isStopped()) {
         resolve(true);
       } else {
+        if (ignorePause) {
+          this.ignorePause = true;
+        }
+
         this.sendCommand(`-exec-interrupt ${threadID || ''}`).then(() => {
           resolve(false);
         });
@@ -686,39 +696,49 @@ export class GDB extends Debugger {
 
     return new Promise(resolve => {
       if (this.isDebuggerReady) {
-        this.clearBreakpoints(fileName).then(() => {
-          const normalizedFileName = this.getNormalizedFileName(fileName);
-          const breakpointsPending: Promise<void>[] = [];
-          const breakpointsConfirmed: Breakpoint[] = [];
-          const breakpointIDs: number[] = [];
+        // There are instances where breakpoints won't properly bind to source locations
+        // despite enabling async mode on GDB. To ensure we always bind to source, explicitly
+        // pause the debugger, but do not react to the signal from the UI side so as to
+        // not get the UI in an odd state
+        this.pause(undefined, true).then(wasPaused => {
+          this.clearBreakpoints(fileName).then(() => {
+            const normalizedFileName = this.getNormalizedFileName(fileName);
+            const breakpointsPending: Promise<void>[] = [];
+            const breakpointsConfirmed: Breakpoint[] = [];
+            const breakpointIDs: number[] = [];
 
-          // Send each breakpoint to GDB. As GDB replies with acknowledgements of
-          // the breakpoint being set, if the breakpoint has been bound to a source
-          // location, mark the breakpoint as being verified. Further, irregardless
-          // of whether or not a breakpoint has been bound to source, modify break
-          // conditions if/when applicable. Note that since we issue commands sequentially
-          // and the debugger will resolve commands in order, we fulfill the requirement
-          // that breakpoints be returned in the same order requested
-          breakpoints.forEach(breakpoint => {
-            breakpointsPending.push(
-              this.sendCommand(
-                getBreakpointInsertionCommand(normalizedFileName, breakpoint)
-              ).then((breakpoint: OutputRecord) => {
-                const bkpt = breakpoint.getResult('bkpt');
-                breakpointsConfirmed.push(
-                  new Breakpoint(!bkpt.pending, bkpt.line)
-                );
+            // Send each breakpoint to GDB. As GDB replies with acknowledgements of
+            // the breakpoint being set, if the breakpoint has been bound to a source
+            // location, mark the breakpoint as being verified. Further, irregardless
+            // of whether or not a breakpoint has been bound to source, modify break
+            // conditions if/when applicable. Note that since we issue commands sequentially
+            // and the debugger will resolve commands in order, we fulfill the requirement
+            // that breakpoints be returned in the same order requested
+            breakpoints.forEach(breakpoint => {
+              breakpointsPending.push(
+                this.sendCommand(
+                  getBreakpointInsertionCommand(normalizedFileName, breakpoint)
+                ).then((breakpoint: OutputRecord) => {
+                  const bkpt = breakpoint.getResult('bkpt');
+                  breakpointsConfirmed.push(
+                    new Breakpoint(!bkpt.pending, bkpt.line)
+                  );
 
-                breakpointIDs.push(parseInt(bkpt.number));
-              })
-            );
-          });
+                  breakpointIDs.push(parseInt(bkpt.number));
+                })
+              );
+            });
 
-          Promise.all(breakpointsPending).then(() => {
-            // Only return breakpoints GDB has actually bound to a source. Others
-            // will be marked verified as the debugger binds them later on
-            this.breakpoints.set(fileName, breakpointIDs);
-            resolve(breakpointsConfirmed);
+            Promise.all(breakpointsPending).then(() => {
+              // Only return breakpoints GDB has actually bound to a source. Others
+              // will be marked verified as the debugger binds them later on
+              this.breakpoints.set(fileName, breakpointIDs);
+              if (!wasPaused) {
+                this.continue();
+              }
+
+              resolve(breakpointsConfirmed);
+            });
           });
         });
       } else {

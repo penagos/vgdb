@@ -378,7 +378,8 @@ export class DebugSession extends LoggingDebugSession {
 
     switch (args.context) {
       case 'repl':
-        this.debugger.pause().then((wasPaused: boolean) => {
+        // Do not allow UI to react to "paused" state
+        this.debugger.pause(undefined, true).then((wasPaused: boolean) => {
           const isMICommand = args.expression.startsWith('-');
 
           if (isMICommand) {
