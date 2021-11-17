@@ -177,10 +177,13 @@ export abstract class Debugger extends EventEmitter {
 
   protected getNormalizedFileName(fileName: string): string {
     if (!this.useAbsoluteFilePathsForBreakpoints) {
-      fileName = path.basename(fileName);
+      return path.basename(fileName);
+    } else if (fileName.includes(this.cwd)) {
+      const normalizedPath = fileName.replace(this.cwd, '');
+      return normalizedPath.charAt(0) === '/' ? normalizedPath.substr(1) : normalizedPath;
+    } else {
+      return fileName;
     }
-
-    return fileName;
   }
 
   private applyArguments(args: any) {
