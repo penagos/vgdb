@@ -127,7 +127,7 @@ export class DebugSession extends LoggingDebugSession {
         'enableCommandCompletions'
       ),
       supportsStepBack: enableReverseDebugging,
-      supportsFunctionBreakpoints: false,
+      supportsFunctionBreakpoints: true,
     };
 
     this.sendResponse(response);
@@ -440,6 +440,14 @@ export class DebugSession extends LoggingDebugSession {
 
       this.sendResponse(response);
     });
+  }
+
+  protected setFunctionBreakPointsRequest(
+    response: DebugProtocol.SetFunctionBreakpointsResponse,
+    args: DebugProtocol.SetFunctionBreakpointsArguments
+  ): void {
+    this.debugger.setFunctionBreakpoints(args.breakpoints);
+    this.sendResponse(response);
   }
 
   protected disconnectRequest(
