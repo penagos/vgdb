@@ -128,6 +128,10 @@ export class DebugSession extends LoggingDebugSession {
       ),
       supportsStepBack: enableReverseDebugging,
       supportsFunctionBreakpoints: true,
+      exceptionBreakpointFilters: [
+        {filter: 'exceptionsThrown', label: 'Thrown Exceptions'},
+        {filter: 'exceptionsCaught', label: 'Caught Exceptions'},
+      ],
     };
 
     this.sendResponse(response);
@@ -446,8 +450,13 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetFunctionBreakpointsResponse,
     args: DebugProtocol.SetFunctionBreakpointsArguments
   ): void {
-    this.debugger.setFunctionBreakpoints(args.breakpoints);
-    this.sendResponse(response);
+    this.debugger.setFunctionBreakpoints(args.breakpoints).then(breakpoints => {
+      response.body = {
+        breakpoints,
+      };
+
+      this.sendResponse(response);
+    });
   }
 
   protected disconnectRequest(

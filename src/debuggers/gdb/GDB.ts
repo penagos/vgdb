@@ -696,13 +696,17 @@ export class GDB extends Debugger {
     return new Promise(resolve => {
       this.clearFunctionBreakpoints().then(() => {
         const breakpointsPending: Promise<void>[] = [];
+        const breakpointsConfirmed: Breakpoint[] = [];
 
         breakpoints.forEach(breakpoint => {
           const cmd = this.sendCommand(`-break-insert ${breakpoint.name}`).then(
             result => {
-              this.functionBreakpoints.set(
-                breakpoint.name,
-                result.getResult('bkpt').number
+              const bkpt = result.getResult('bkpt');
+
+              this.functionBreakpoints.set(breakpoint.name, bkpt.number);
+
+              breakpointsConfirmed.push(
+                new Breakpoint(!bkpt.pending, bkpt.line)
               );
             }
           );
@@ -711,7 +715,7 @@ export class GDB extends Debugger {
         });
 
         Promise.all(breakpointsPending).then(() => {
-          resolve([]);
+          resolve(breakpointsConfirmed);
         });
       });
     });
