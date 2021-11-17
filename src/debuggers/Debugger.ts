@@ -134,6 +134,10 @@ export abstract class Debugger extends EventEmitter {
     breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]>;
   public abstract spawnDebugger(): Promise<boolean>;
+  public abstract setVariable(
+    id: number,
+    value: string
+  ): Promise<OutputRecord | null>;
   public abstract stepIn(threadID: number): Promise<OutputRecord>;
   public abstract stepOut(threadID: number): Promise<OutputRecord>;
   public abstract stepBack(threadID: number): Promise<OutputRecord>;
@@ -180,7 +184,9 @@ export abstract class Debugger extends EventEmitter {
       return path.basename(fileName);
     } else if (fileName.includes(this.cwd)) {
       const normalizedPath = fileName.replace(this.cwd, '');
-      return normalizedPath.charAt(0) === '/' ? normalizedPath.substr(1) : normalizedPath;
+      return normalizedPath.charAt(0) === '/'
+        ? normalizedPath.substr(1)
+        : normalizedPath;
     } else {
       return fileName;
     }

@@ -464,6 +464,20 @@ export class GDB extends Debugger {
     });
   }
 
+  public setVariable(id: number, value: string): Promise<OutputRecord | null> {
+    const variable = this.variables.get(this.getNormalizedVariableID(id));
+
+    // This should always hit in the map. If it doesn't however, do not allow
+    // the updating of this variable
+    if (variable) {
+      return this.sendCommand(`-var-assign ${variable.debuggerName} ${value}`);
+    } else {
+      return new Promise(resolve => {
+        resolve(null);
+      });
+    }
+  }
+
   /**
    * This is invoked for requesting all variables in all scopes. To distinguish
    * how we query the debugger, rely on artifically large scope identifiers
@@ -906,5 +920,13 @@ export class GDB extends Debugger {
         resolve(false);
       }
     });
+  }
+
+  private getNormalizedVariableID(id: number): number {
+    if (id < SCOPE_LOCAL) {
+      return id;
+    } else {
+      return id - SCOPE_LOCAL;
+    }
   }
 }

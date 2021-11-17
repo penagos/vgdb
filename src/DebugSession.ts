@@ -429,6 +429,19 @@ export class DebugSession extends LoggingDebugSession {
     }
   }
 
+  protected setVariableRequest(
+    response: DebugProtocol.SetVariableResponse,
+    args: DebugProtocol.SetVariableArguments
+  ): void {
+    this.debugger.setVariable(args.variablesReference, args.value).then(() => {
+      response.body = {
+        value: args.value,
+      };
+
+      this.sendResponse(response);
+    });
+  }
+
   protected disconnectRequest(
     response: DebugProtocol.DisconnectResponse,
     args: DebugProtocol.DisconnectArguments
