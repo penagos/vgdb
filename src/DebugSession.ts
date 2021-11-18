@@ -125,6 +125,7 @@ export class DebugSession extends LoggingDebugSession {
       supportsDisassembleRequest: true,
       supportsSteppingGranularity: true,
       supportsExceptionInfoRequest: true,
+      supportsLogPoints: true,
       supportsCompletionsRequest: this.getSettingValue(
         'enableCommandCompletions'
       ),
@@ -511,9 +512,9 @@ export class DebugSession extends LoggingDebugSession {
     });
 
     // Pipe to debug console
-    this.debugger.on(EVENT_OUTPUT, (text: string) => {
+    this.debugger.on(EVENT_OUTPUT, (text: string, type: string) => {
       // Massage GDB output as much as possible
-      this.sendEvent(new OutputEvent(text + '\n', 'console'));
+      this.sendEvent(new OutputEvent(text + '\n', type));
     });
 
     // Events triggered by debuggeer

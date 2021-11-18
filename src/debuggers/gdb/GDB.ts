@@ -71,6 +71,7 @@ export class GDB extends Debugger {
   private handlers: {[token: number]: (record: OutputRecord) => void} = [];
 
   private breakpoints = new Map<string, number[]>();
+  private logBreakpoints = new Map<number, string>();
   private functionBreakpoints = new Map<string, number>();
   private exceptionBreakpoints = new Map<string, number>();
 
@@ -131,7 +132,7 @@ export class GDB extends Debugger {
 
   private handleStreamRecord(record: StreamRecord) {
     // Forward raw GDB output to debug console
-    this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true));
+    this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true), 'console');
   }
 
   private handleResultRecord(record: ResultRecord) {
@@ -197,7 +198,22 @@ export class GDB extends Debugger {
               case EVENT_FUNCTION_FINISHED:
                 // These events don't necessitate any special changes
                 // on the debugger itself. Simply bubble up the event
-                // to the debug session.
+                // to the debug session. If this is the result of a logging
+                // breakpoint, do not stop
+                if (stoppedReason === EVENT_BREAKPOINT_HIT) {
+                  const bkpt = record.getResult('bkptno');
+                  const msg = this.logBreakpoints.get(bkpt);
+
+                  if (msg) {
+                    this.printLogPoint(msg).then((msgFormtted) => {
+                      this.emit(EVENT_OUTPUT, msgFormtted, 'stdout');
+                      this.continue();
+                    });
+
+                    return;
+                  }
+                }
+
                 this.emit(stoppedReason, this.threadID);
                 break;
 
@@ -357,6 +373,10 @@ export class GDB extends Debugger {
       if (breakpoints) {
         breakpoints.forEach((breakpoint: number) => {
           pending.push(this.sendCommand(`-break-delete ${breakpoint}`));
+
+          if (this.logBreakpoints.get(breakpoint)) {
+            this.logBreakpoints.delete(breakpoint);
+          }
         });
 
         Promise.all(pending).then(() => {
@@ -782,15 +802,19 @@ export class GDB extends Debugger {
             // conditions if/when applicable. Note that since we issue commands sequentially
             // and the debugger will resolve commands in order, we fulfill the requirement
             // that breakpoints be returned in the same order requested
-            breakpoints.forEach(breakpoint => {
+            breakpoints.forEach(srcBreakpoint => {
               breakpointsPending.push(
                 this.sendCommand(
-                  getBreakpointInsertionCommand(normalizedFileName, breakpoint)
+                  getBreakpointInsertionCommand(normalizedFileName, srcBreakpoint)
                 ).then((breakpoint: OutputRecord) => {
                   const bkpt = breakpoint.getResult('bkpt');
                   breakpointsConfirmed.push(
                     new Breakpoint(!bkpt.pending, bkpt.line)
                   );
+
+                  if (srcBreakpoint.logMessage) {
+                    this.logBreakpoints.set(bkpt.number, srcBreakpoint.logMessage);
+                  }
 
                   breakpointIDs.push(parseInt(bkpt.number));
                 })
@@ -1011,6 +1035,35 @@ export class GDB extends Debugger {
         this.exceptionBreakpoints.clear();
         resolve(true);
       });
+    });
+  }
+
+  private printLogPoint(msg: string): Promise<string> {
+    return new Promise(resolve => {
+      const vars = msg.match(/{.*?}/g);
+
+      if (vars) {
+        const pending: Promise<boolean>[] = [];
+
+        vars.forEach(v => {
+          const varName = v.replace('{', '').replace('}', '');
+
+          pending.push(new Promise(resolve => {
+            this.sendCommand(`-var-create - * "${varName}"`).then(async vObj => {
+              this.sendCommand(`-var-evaluate-expression ${vObj.getResult('name')}`).then(vRes => {
+                msg = msg.replace(v, vRes.getResult('value'));
+                resolve(true);
+              });
+            });
+          }));
+        });
+  
+        Promise.all(pending).then(() => {
+          resolve(msg);
+        });
+      } else {
+        resolve(msg);
+      }
     });
   }
 }
