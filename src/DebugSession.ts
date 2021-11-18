@@ -21,6 +21,8 @@ import {GDB} from './debuggers/gdb/GDB';
 import {
   Debugger,
   DebuggerVariable,
+  EXCEPTION_CATCH,
+  EXCEPTION_THROW,
   SCOPE_LOCAL,
   SCOPE_REGISTERS,
 } from './debuggers/Debugger';
@@ -129,8 +131,8 @@ export class DebugSession extends LoggingDebugSession {
       supportsStepBack: enableReverseDebugging,
       supportsFunctionBreakpoints: true,
       exceptionBreakpointFilters: [
-        {filter: 'exceptionsThrown', label: 'Thrown Exceptions'},
-        {filter: 'exceptionsCaught', label: 'Caught Exceptions'},
+        {filter: EXCEPTION_THROW, label: 'Thrown Exceptions'},
+        {filter: EXCEPTION_CATCH, label: 'Caught Exceptions'},
       ],
     };
 
@@ -455,6 +457,15 @@ export class DebugSession extends LoggingDebugSession {
         breakpoints,
       };
 
+      this.sendResponse(response);
+    });
+  }
+
+  protected setExceptionBreakPointsRequest(
+    response: DebugProtocol.SetExceptionBreakpointsResponse,
+    args: DebugProtocol.SetExceptionBreakpointsArguments
+  ): void {
+    this.debugger.setExceptionBreakpoints(args.filters).then(() => {
       this.sendResponse(response);
     });
   }

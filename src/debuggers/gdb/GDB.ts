@@ -72,6 +72,7 @@ export class GDB extends Debugger {
 
   private breakpoints = new Map<string, number[]>();
   private functionBreakpoints = new Map<string, number>();
+  private exceptionBreakpoints = new Map<string, number>();
 
   // Mapping of symbolic variable names to GDB variable references
   private variables = new Map<number, DebuggerVariable>();
@@ -690,6 +691,27 @@ export class GDB extends Debugger {
     });
   }
 
+  public setExceptionBreakpoints(filter: string[]): Promise<boolean> {
+    return new Promise(resolve => {
+      this.clearExceptionBreakpoints().then(() => {
+        const breakpointsPending: Promise<void>[] = [];
+
+        filter.forEach((type: string) => {
+          const cmd = this.sendCommand(`-catch-${type}`).then(result => {
+            const bkpt = result.getResult('bkpt');
+            this.exceptionBreakpoints.set(type, bkpt.number);
+          });
+
+          breakpointsPending.push(cmd);
+        });
+
+        Promise.all(breakpointsPending).then(() => {
+          resolve(true);
+        });
+      });
+    });
+  }
+
   public setFunctionBreakpoints(
     breakpoints: DebugProtocol.FunctionBreakpoint[]
   ): Promise<Breakpoint[]> {
@@ -972,6 +994,21 @@ export class GDB extends Debugger {
 
       Promise.all(pending).then(() => {
         this.functionBreakpoints.clear();
+        resolve(true);
+      });
+    });
+  }
+
+  private clearExceptionBreakpoints(): Promise<boolean> {
+    return new Promise(resolve => {
+      const pending: Promise<OutputRecord>[] = [];
+
+      this.exceptionBreakpoints.forEach((num: number) => {
+        pending.push(this.sendCommand(`-break-delete ${num}`));
+      });
+
+      Promise.all(pending).then(() => {
+        this.exceptionBreakpoints.clear();
         resolve(true);
       });
     });

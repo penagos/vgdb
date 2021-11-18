@@ -15,6 +15,10 @@ import path = require('path');
 
 export const SCOPE_LOCAL = 100000;
 export const SCOPE_REGISTERS = 200000;
+
+export const EXCEPTION_THROW = 'throw';
+export const EXCEPTION_CATCH = 'catch';
+
 export abstract class DebuggerException {
   public name: string;
   public description: string;
@@ -133,6 +137,7 @@ export abstract class Debugger extends EventEmitter {
     fileName: string,
     breakpoints: DebugProtocol.SourceBreakpoint[]
   ): Promise<Breakpoint[]>;
+  public abstract setExceptionBreakpoints(filter: string[]): Promise<boolean>;
   public abstract setFunctionBreakpoints(
     breakpoints: DebugProtocol.FunctionBreakpoint[]
   ): Promise<Breakpoint[]>;
