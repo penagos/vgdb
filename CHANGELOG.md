@@ -1,6 +1,25 @@
 # Release Notes
 **This extension is under active development**
 
+## 1.2.0 (November/19/2021)
+
+This release adds the following features:
+
+- Setting function breakpoints
+- Breaking on C++ throws/catches
+- Setting logpoints
+
+This release fixes the following bug:
+
+- Values not being properly set in the variables pane
+- Fix verbose debugging option
+- Other minor stability improvements
+
+## 1.1.1 (November/9/2021)
+
+This release fixes the following bug:
+
+- Breakpoints sporadically binding to the inferior process
 ## 1.1.0 (November/7/2021)
 
 This release fixes the following bugs:

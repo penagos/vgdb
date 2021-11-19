@@ -6,8 +6,7 @@ import {
   DebugConfiguration,
   CancellationToken,
   ProviderResult,
-  OutputChannel,
-  Terminal,
+  OutputChannel
 } from 'vscode';
 import {DebugSession} from './DebugSession';
 import * as Net from 'net';
@@ -16,7 +15,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
   private server?: Net.Server;
   private outputChannel: OutputChannel;
 
-  public constructor(terminal: Terminal, outputChannel: OutputChannel) {
+  public constructor(outputChannel: OutputChannel) {
     this.outputChannel = outputChannel;
   }
 
@@ -85,7 +84,6 @@ export function activate(context: vscode.ExtensionContext) {
   // Create the debug output and terminal windows once on activation event
   // to prevent spawning new terminals on each launch request
   const provider = new GDBConfigurationProvider(
-    vscode.window.createTerminal('vGDB'),
     vscode.window.createOutputChannel('vGDB')
   );
   context.subscriptions.push(

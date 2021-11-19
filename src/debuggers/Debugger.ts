@@ -24,6 +24,12 @@ export abstract class DebuggerException {
   public description: string;
 }
 
+export enum DebuggingVerbosity {
+  OFF = 'off',
+  BASIC = 'basic',
+  VERBOSE = 'verbose'
+}
+
 export class DebuggerVariable {
   public name: string;
 
@@ -64,7 +70,7 @@ export abstract class Debugger extends EventEmitter {
   protected inferiorOutputHandle: any;
 
   // Should any debug logging occur?
-  protected debug = false;
+  protected debug = DebuggingVerbosity.OFF;
 
   // Is the debugger ready to start accepting commands?
   protected isDebuggerReady = false;
@@ -162,7 +168,7 @@ export abstract class Debugger extends EventEmitter {
   }
 
   protected log(text: string) {
-    if (this.debug) {
+    if (this.debug !== DebuggingVerbosity.OFF) {
       this.outputChannel.appendLine(text);
     }
   }
@@ -190,11 +196,6 @@ export abstract class Debugger extends EventEmitter {
   protected getNormalizedFileName(fileName: string): string {
     if (!this.useAbsoluteFilePathsForBreakpoints) {
       return path.basename(fileName);
-    } else if (fileName.includes(this.cwd)) {
-      const normalizedPath = fileName.replace(this.cwd, '');
-      return normalizedPath.charAt(0) === '/'
-        ? normalizedPath.substr(1)
-        : normalizedPath;
     } else {
       return fileName;
     }
@@ -211,7 +212,7 @@ export abstract class Debugger extends EventEmitter {
       args.useAbsoluteFilePaths || false;
     this.userSpecifiedDebuggerArguments = args.args || [];
     this.sharedLibraries = args.sharedLibraries || [];
-    this.debug = args.debug || false;
+    this.debug = args.debug || DebuggingVerbosity.OFF;
     this.type = args.request;
   }
 

@@ -9,6 +9,7 @@ import {
   Debugger,
   DebuggerException,
   DebuggerVariable,
+  DebuggingVerbosity,
   SCOPE_LOCAL,
   SCOPE_REGISTERS,
 } from '../Debugger';
@@ -132,7 +133,11 @@ export class GDB extends Debugger {
 
   private handleStreamRecord(record: StreamRecord) {
     // Forward raw GDB output to debug console
-    this.emit(EVENT_OUTPUT, this.sanitize(record.prettyPrint(), true), 'console');
+    this.emit(
+      EVENT_OUTPUT,
+      this.sanitize(record.prettyPrint(), true),
+      'console'
+    );
   }
 
   private handleResultRecord(record: ResultRecord) {
@@ -205,7 +210,7 @@ export class GDB extends Debugger {
                   const msg = this.logBreakpoints.get(bkpt);
 
                   if (msg) {
-                    this.printLogPoint(msg).then((msgFormtted) => {
+                    this.printLogPoint(msg).then(msgFormtted => {
                       this.emit(EVENT_OUTPUT, msgFormtted, 'stdout');
                       this.continue();
                     });
@@ -648,6 +653,15 @@ export class GDB extends Debugger {
       this.inferiorInputHandle.write(command);
       this.handlers[this.token] = (record: OutputRecord) => {
         this.log(record.prettyPrint());
+
+        if (this.debug === DebuggingVerbosity.VERBOSE) {
+          this.emit(
+            EVENT_OUTPUT,
+            this.sanitize(record.prettyPrint(), true),
+            'console'
+          );
+        }
+
         resolve(record);
       };
     });
@@ -805,7 +819,10 @@ export class GDB extends Debugger {
             breakpoints.forEach(srcBreakpoint => {
               breakpointsPending.push(
                 this.sendCommand(
-                  getBreakpointInsertionCommand(normalizedFileName, srcBreakpoint)
+                  getBreakpointInsertionCommand(
+                    normalizedFileName,
+                    srcBreakpoint
+                  )
                 ).then((breakpoint: OutputRecord) => {
                   const bkpt = breakpoint.getResult('bkpt');
                   breakpointsConfirmed.push(
@@ -813,7 +830,10 @@ export class GDB extends Debugger {
                   );
 
                   if (srcBreakpoint.logMessage) {
-                    this.logBreakpoints.set(bkpt.number, srcBreakpoint.logMessage);
+                    this.logBreakpoints.set(
+                      bkpt.number,
+                      srcBreakpoint.logMessage
+                    );
                   }
 
                   breakpointIDs.push(parseInt(bkpt.number));
@@ -1048,16 +1068,22 @@ export class GDB extends Debugger {
         vars.forEach(v => {
           const varName = v.replace('{', '').replace('}', '');
 
-          pending.push(new Promise(resolve => {
-            this.sendCommand(`-var-create - * "${varName}"`).then(async vObj => {
-              this.sendCommand(`-var-evaluate-expression ${vObj.getResult('name')}`).then(vRes => {
-                msg = msg.replace(v, vRes.getResult('value'));
-                resolve(true);
-              });
-            });
-          }));
+          pending.push(
+            new Promise(resolve => {
+              this.sendCommand(`-var-create - * "${varName}"`).then(
+                async vObj => {
+                  this.sendCommand(
+                    `-var-evaluate-expression ${vObj.getResult('name')}`
+                  ).then(vRes => {
+                    msg = msg.replace(v, vRes.getResult('value'));
+                    resolve(true);
+                  });
+                }
+              );
+            })
+          );
         });
-  
+
         Promise.all(pending).then(() => {
           resolve(msg);
         });
