@@ -548,6 +548,7 @@ export class GDB extends Debugger {
                 referenceID:
                   this.variables.size + 1 + childrenVariables.size + 1,
                 value: child[1].value || '',
+                type: child[1].type,
               };
 
               childrenVariables.set(newVariable.referenceID, newVariable);
@@ -903,6 +904,7 @@ export class GDB extends Debugger {
             numberOfChildren: childCount,
             referenceID: childCount ? this.variables.size + 1 : 0,
             value: gdbVariable.getResult('value'),
+            type: gdbVariable.getResult('type'),
           };
 
           this.variables.set(this.variables.size + 1, newVariable);

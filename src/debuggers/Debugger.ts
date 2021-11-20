@@ -39,6 +39,7 @@ export class DebuggerVariable {
   public numberOfChildren: number;
   public referenceID: number;
   public value: string;
+  public type: string;
 }
 export abstract class Debugger extends EventEmitter {
   protected cwd: string;

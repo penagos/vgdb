@@ -254,6 +254,8 @@ export class DebugSession extends LoggingDebugSession {
             variable.value,
             variable.numberOfChildren ? variable.referenceID : 0
           );
+
+          v.type = variable.type;
           variables.push(v);
         });
 
