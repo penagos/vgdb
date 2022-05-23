@@ -419,9 +419,12 @@ export class DebugSession extends LoggingDebugSession {
             variablesReference: variable.referenceID,
           };
 
-          if (variable.value) {
-            this.sendResponse(response);
+          if (!variable.value) {
+            response.success = false;
+            response.message = `Variable '${variable.name}' not found`;
           }
+
+          this.sendResponse(response);
         };
 
         const variable = this.debugger.getVariable(args.expression);
