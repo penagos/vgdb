@@ -43,14 +43,15 @@ These are all of the settings currently supported:
 
 | Configuration Option  | Required | Description                                                              |
 | --------------------- |----------|--------------------------------------------------------------------------|
+| `program`             | Yes      | Path to program to debug<br>```"path/to/executable"```                   |
+| `request`             | Yes      | Set this to `launch`                                                     |
 | `args`                | No       | Array of arguments to pass to debuggee<br>```["arg1", "arg2", "arg3"]``` |
 | `cwd`                 | No       | The directory in which to start GDB<br>```"someOptionalDirectory"```     |
 | `debug`               | No       | Verbosity of logging.<br>```"off"\|"basic"\|"verbose"```                 |
 | `debugger`            | No       | Path to GDB executable<br>```"/absolute/path/to/gdb"```                  |
+| `debuggerArgs`        | No       | Array of arguments to pass to debugger<br>```["arg1", "arg2", "arg3"]``` |
 | `env`                 | No       | Key value pairs of environment variables to set in debugging shell<br>```{"name1": "value1", "name2": "value2"}``` |
 | `externalConsole`     | No       | If set to false, debuggee will launch in Visual Studio Code terminal<br>```true\|false``` |
-| `program`             | Yes      | Path to program to debug<br>```"path/to/executable"```                   |
-| `request`             | Yes      | Set this to `launch`                                                     |
 | `sharedLibraries`     | No       | Array of shared library names to load, disregards all other libraries<br>```["solib1.so", "solib2.so"]``` |
 | `startupCmds`         | No       | Array of GDB commands to run at start<br>```["gdb_command", "gdb_command2"]``` |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints<br>```true\|false``` |
@@ -66,10 +67,10 @@ These are all of the settings currently supported:
 
 | Configuration Option  | Required | Description                                                              |
 | --------------------- |----------|--------------------------------------------------------------------------|
-| `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
-| `debugger`            | No       | Path to GDB executable                                                   |
 | `program`             | Yes      | Path to program to debug                                                 |
 | `request`             | Yes      | Set this to `attach`                                                     |
+| `debug`               | No       | Verbosity of logging. Values are `off`, `basic` or `verbose`             |
+| `debugger`            | No       | Path to GDB executable                                                   |
 | `useAbsoluteFilePaths`| No       | If true (default), full filepaths will be used when setting breakpoints  |
 
 ### Building from Source

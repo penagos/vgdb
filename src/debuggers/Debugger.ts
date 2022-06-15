@@ -3,10 +3,11 @@ import {exec} from 'child_process';
 import {EventEmitter} from 'events';
 import * as fs from 'fs';
 import {WriteStream} from 'fs';
+import * as vscode from 'vscode';
 import * as ts from 'tail-stream';
 import {CompletionItem, OutputChannel} from 'vscode';
 import {AttachRequestArguments, LaunchRequestArguments} from '../DebugSession';
-import {Breakpoint, DebugSession} from 'vscode-debugadapter';
+import {Breakpoint} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {OutputRecord} from './gdb/parser/OutputRecord';
@@ -27,7 +28,7 @@ export abstract class DebuggerException {
 export enum DebuggingVerbosity {
   OFF = 'off',
   BASIC = 'basic',
-  VERBOSE = 'verbose'
+  VERBOSE = 'verbose',
 }
 
 export class DebuggerVariable {
@@ -44,6 +45,7 @@ export class DebuggerVariable {
 export abstract class Debugger extends EventEmitter {
   protected cwd: string;
   protected debuggerPath: string;
+  protected debuggerArgs: string[];
   protected environmentVariables: string[];
   protected inferiorProgram: string | number;
   protected attachPID: number;
@@ -76,6 +78,9 @@ export abstract class Debugger extends EventEmitter {
   // Is the debugger ready to start accepting commands?
   protected isDebuggerReady = false;
 
+  // Is it safe to request continued execution of the inferior process?
+  protected inferiorRunning = false;
+
   // Is this a launch or attach request?
   protected type = '';
 
@@ -87,18 +92,16 @@ export abstract class Debugger extends EventEmitter {
   }
 
   public spawn(
-    args: LaunchRequestArguments | AttachRequestArguments,
-    debugSession: DebugSession
+    args: LaunchRequestArguments | AttachRequestArguments
   ): Promise<boolean> {
     this.applyArguments(args);
 
     return new Promise(resolve => {
       this.createIOPipeNames().then(() => {
         this.createAndBindIOPipeHandles().then(() => {
-          this.createTerminalAndLaunchDebugger(debugSession).then(() => {
-            this.runStartupCommands().then(() => {
-              this.handleInferiorInputCreated().then(() => resolve(true));
-            });
+          this.createTerminalAndLaunchDebugger();
+          this.runStartupCommands().then(() => {
+            this.handleInferiorInputCreated().then(() => resolve(true));
           });
         });
       });
@@ -164,6 +167,10 @@ export abstract class Debugger extends EventEmitter {
   protected abstract handleInferiorOutput(data: any): void;
   protected abstract handlePostDebuggerStartup(): Promise<boolean>;
 
+  public setInferiorLaunched(hasLaunched: boolean) {
+    this.inferiorRunning = hasLaunched;
+  }
+
   protected isStopped(): boolean {
     return this.threadID !== -1;
   }
@@ -205,6 +212,7 @@ export abstract class Debugger extends EventEmitter {
   private applyArguments(args: any) {
     this.cwd = args.cwd || '';
     this.debuggerPath = args.debugger || this.debuggerPath;
+    this.debuggerArgs = args.debuggerArgs || this.debuggerArgs;
     this.environmentVariables = args.env || [];
     this.inferiorProgram = args.program;
     this.startupCommands = args.startupCmds || [];
@@ -217,38 +225,26 @@ export abstract class Debugger extends EventEmitter {
     this.type = args.request;
   }
 
-  private createTerminalAndLaunchDebugger(
-    debugSession: DebugSession
-  ): Promise<boolean> {
+  private createTerminalAndLaunchDebugger(): void {
     // We cannot simply send all commands to the terminal and assume the
     // user's default shell is bash. Instead we will wrap all cmds in a
     // string and explicitly invoke the bash shell
-
-    return new Promise(resolve => {
-      const env = {};
-      Object.keys(this.environmentVariables).forEach((key: string) => {
-        const value = this.environmentVariables[key];
-        env[key] = value;
-      });
-
-      debugSession.runInTerminalRequest(
-        {
-          kind: 'integrated',
-          cwd: this.cwd,
-          title: 'vGDB',
-          args: this.createDebuggerLaunchCommand(),
-          env,
-        },
-        5000,
-        response => {
-          if (response.success) {
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        }
-      );
+    const env = {};
+    Object.keys(this.environmentVariables).forEach((key: string) => {
+      const value = this.environmentVariables[key];
+      env[key] = value;
     });
+
+    // Using debugSession.runInTerminalRequest will not work well with
+    // attempting to evaluate inline tty (or arbitrary shell commands)
+    // presumably due to some API text escaping introduced in VSCode 1.68.0
+    const terminal = vscode.window.createTerminal({
+      name: 'vGDB',
+      cwd: this.cwd,
+      env: env,
+    });
+
+    terminal.sendText(this.createDebuggerLaunchCommand().join(' '));
   }
 
   private createIOPipeNames(): Promise<boolean> {

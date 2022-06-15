@@ -1,6 +1,18 @@
 # Release Notes
 **This extension is under active development**
 
+## 1.3.0 (July/1/2022)
+
+This release adds the following features:
+
+- `debuggerArgs` launch configuration setting: pass arbitrary arguments to the debugger extension (Fixes #20)
+- Improve verbose debugging output by including commands sent to MI debugger
+
+This release fixes the following bugs:
+
+- Invalid / unavailable watch expressions are now correctly rendered in the UI in lieu of showing old previously available value
+- Stack frames with unavailable debug symbols are shown as grayed out to better convey lack of source
+- Fix failed debug launches with VSCode 1.68.0+ by reworking how the integrated terminal is used to spawn the MI debugger
 ## 1.2.0 (December/16/2021)
 
 This release adds the following features:
@@ -9,7 +21,7 @@ This release adds the following features:
 - Breaking on C++ throws/catches
 - Setting logpoints
 
-This release fixes the following bug:
+This release fixes the following bugs:
 
 - Values not being properly set in the variables pane
 - Fix verbose debugging option

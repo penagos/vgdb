@@ -58,6 +58,8 @@ export interface LaunchRequestArguments
   cwd: string;
   /** Debugger path */
   debugger: string;
+  /** Debugger arguments */
+  debuggerArgs?: string[];
   /** Target name */
   name: string;
   /** GDB commands to run on startp */
@@ -80,6 +82,8 @@ export interface AttachRequestArguments
   program: number;
   /** Debugger path */
   debugger: string;
+  /** Debugger arguments */
+  debuggerArgs?: string[];
   /** How verbose should debug logging be? */
   debug?: DebugLoggingLevel;
   /** Should inferior terminal be in VSCode? */
@@ -150,7 +154,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.LaunchResponse,
     args: LaunchRequestArguments
   ) {
-    this.debugger.spawn(args, this).then(() => {
+    this.debugger.spawn(args).then(() => {
       this.sendResponse(response);
     });
   }
@@ -159,7 +163,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse,
     args: AttachRequestArguments
   ) {
-    this.debugger.spawn(args, this).then(() => {
+    this.debugger.spawn(args).then(() => {
       this.sendResponse(response);
     });
   }
@@ -169,6 +173,7 @@ export class DebugSession extends LoggingDebugSession {
     args: DebugProtocol.ConfigurationDoneArguments
   ) {
     this.debugger.launchInferior().then(() => {
+      this.debugger.setInferiorLaunched(true);
       vscode.commands
         .executeCommand('workbench.action.terminal.clear')
         .then(() => {

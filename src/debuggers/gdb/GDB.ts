@@ -52,7 +52,7 @@ export class GDB extends Debugger {
 
   // Arguments to pass to GDB. These will be combined with any that need to
   //  threaded to the inferior process
-  private debuggerLaunchArguments = ['--interpreter=mi', '-q', '--tty=`tty`'];
+  private debuggerLaunchArguments = ['--interpreter=mi', '--tty=`tty`', '-q'];
 
   // This instance will handle all MI output parsing
   private parser: MIParser = new MIParser();
@@ -652,6 +652,11 @@ export class GDB extends Debugger {
     return new Promise(resolve => {
       command = `${++this.token + command}\n`;
       this.inferiorInputHandle.write(command);
+
+      if (this.debug === DebuggingVerbosity.VERBOSE) {
+        this.emit(EVENT_OUTPUT, this.sanitize(command.slice(0, -1)), 'stdout');
+      }
+
       this.handlers[this.token] = (record: OutputRecord) => {
         this.log(record.prettyPrint());
 
@@ -846,7 +851,10 @@ export class GDB extends Debugger {
               // Only return breakpoints GDB has actually bound to a source. Others
               // will be marked verified as the debugger binds them later on
               this.breakpoints.set(fileName, breakpointIDs);
-              if (!wasPaused) {
+              // This is one of the few requests that may be hit prior to the inferior
+              // running. In such case, do not attempt to continue a process that has
+              // yet to be started
+              if (!wasPaused && this.inferiorRunning) {
                 this.continue();
               }
 
@@ -925,7 +933,7 @@ export class GDB extends Debugger {
     // the +m command to hide the background "done" message when GDB
     // finishes debugging the inferior. These hacks probably won't work on Windows
     let args = [this.debuggerPath];
-    args = args.concat(this.debuggerLaunchArguments);
+    args = args.concat(this.debuggerArgs, this.debuggerLaunchArguments);
 
     // Append any user specified arguments to the inferior
     if (this.type === 'launch') {
