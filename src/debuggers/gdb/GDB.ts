@@ -420,7 +420,10 @@ export class GDB extends Debugger {
             const sf: DebugProtocol.StackFrame = new StackFrame(
               threadID + parseInt(frame.level),
               frame.func,
-              new Source(frame.file, frame.fullname),
+              new Source(
+                frame.file.split('\\').pop().split('/').pop(),
+                frame.fullname
+              ),
               parseInt(frame.line)
             );
 
