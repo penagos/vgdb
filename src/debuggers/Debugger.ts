@@ -195,7 +195,7 @@ export abstract class Debugger extends EventEmitter {
     // If we are sanitizing MI output there are additional things we need
     // to strip out
     if (MI) {
-      text = text.replace(/^~"[0-9]*/g, '').replace(/"$/g, '');
+      text = text.replace(/^~"*/g, '').replace(/"$/g, '');
     }
 
     return text;
