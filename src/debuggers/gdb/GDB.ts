@@ -212,10 +212,7 @@ export class GDB extends Debugger {
                   if (msg) {
                     this.printLogPoint(msg).then(msgFormtted => {
                       this.emit(EVENT_OUTPUT, msgFormtted, 'stdout');
-                      this.continue();
                     });
-
-                    return;
                   }
                 }
 
