@@ -13,6 +13,7 @@ This release fixes the following bugs:
 - Invalid / unavailable watch expressions are now correctly rendered in the UI in lieu of showing old previously available value
 - Stack frames with unavailable debug symbols are shown as grayed out to better convey lack of source
 - Fix failed debug launches with VSCode 1.68.0+ by reworking how the integrated terminal is used to spawn the MI debugger
+- Fix log breakpoints always resuming inferior execution (not honoring step requests)
 ## 1.2.0 (December/16/2021)
 
 This release adds the following features:
