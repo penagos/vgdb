@@ -905,13 +905,20 @@ export class GDB extends Debugger {
     return new Promise(resolve => {
       this.sendCommand(`-var-create - * "${this.escapeQuotes(name)}"`).then(
         gdbVariable => {
-          const childCount = parseInt(gdbVariable.getResult('numchild'));
+          // Dyanmic GDB variables need also reference has_more to accurately determine
+          // if they are a composite/aggregate type
+          const childCount =
+            parseInt(gdbVariable.getResult('numchild')) ||
+            (parseInt(gdbVariable.getResult('dynamic')) &&
+              parseInt(gdbVariable.getResult('has_more')));
+
+          const variableValue = gdbVariable.getResult('value');
           const newVariable: DebuggerVariable = {
             name: name,
             debuggerName: gdbVariable.getResult('name'),
             numberOfChildren: childCount,
             referenceID: childCount ? this.variables.size + 1 : 0,
-            value: gdbVariable.getResult('value'),
+            value: variableValue,
             type: gdbVariable.getResult('type'),
           };
 
@@ -962,6 +969,7 @@ export class GDB extends Debugger {
       Promise.all([
         this.cacheRegisterNames(),
         this.deferSharedLibraryLoading(),
+        this.sendCommand('-enable-pretty-printing'),
       ]).then(() => {
         resolve(true);
       });
