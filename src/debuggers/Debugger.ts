@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import {WriteStream} from 'fs';
 import * as vscode from 'vscode';
 import * as ts from 'tail-stream';
-import {CompletionItem, OutputChannel} from 'vscode';
+import {CompletionItem, OutputChannel, Terminal} from 'vscode';
 import {AttachRequestArguments, LaunchRequestArguments} from '../DebugSession';
 import {Breakpoint} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
@@ -83,6 +83,8 @@ export abstract class Debugger extends EventEmitter {
 
   // Is this a launch or attach request?
   protected type = '';
+
+  protected static terminal: Terminal;
 
   constructor(
     private readonly outputChannel: OutputChannel,
@@ -238,13 +240,17 @@ export abstract class Debugger extends EventEmitter {
     // Using debugSession.runInTerminalRequest will not work well with
     // attempting to evaluate inline tty (or arbitrary shell commands)
     // presumably due to some API text escaping introduced in VSCode 1.68.0
-    const terminal = vscode.window.createTerminal({
-      name: 'vGDB',
-      cwd: this.cwd,
-      env: env,
-    });
+    // Reuse prior terminal from previous launches if available
+    Debugger.terminal =
+      Debugger.terminal ||
+      vscode.window.createTerminal({
+        name: 'vGDB',
+        cwd: this.cwd,
+        env: env,
+      });
 
-    terminal.sendText(this.createDebuggerLaunchCommand().join(' '));
+    Debugger.terminal.sendText(this.createDebuggerLaunchCommand().join(' '));
+    Debugger.terminal.show();
   }
 
   private createIOPipeNames(): Promise<boolean> {
