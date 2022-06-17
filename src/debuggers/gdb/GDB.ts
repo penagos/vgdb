@@ -419,7 +419,9 @@ export class GDB extends Debugger {
               threadID + parseInt(frame.level),
               frame.func,
               new Source(
-                frame.file.split('\\').pop().split('/').pop(),
+                frame.file
+                  ? frame.file.split('\\').pop().split('/').pop()
+                  : '??',
                 frame.fullname
               ),
               parseInt(frame.line)
