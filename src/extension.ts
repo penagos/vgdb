@@ -6,7 +6,7 @@ import {
   DebugConfiguration,
   CancellationToken,
   ProviderResult,
-  OutputChannel
+  OutputChannel,
 } from 'vscode';
 import {DebugSession} from './DebugSession';
 import * as Net from 'net';
@@ -64,7 +64,7 @@ class GDBConfigurationProvider implements vscode.DebugConfigurationProvider {
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
-    vscode.commands.registerCommand('extension.vgdb.getProgramName', config => {
+    vscode.commands.registerCommand('extension.vgdb.getProgramName', () => {
       return vscode.window.showInputBox({
         placeHolder: 'Enter the path to the executable to debug',
         value: 'a.out',
@@ -73,7 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('extension.vgdb.getProgramPID', config => {
+    vscode.commands.registerCommand('extension.vgdb.getProgramPID', () => {
       return vscode.window.showInputBox({
         placeHolder: 'Enter PID of program to attach to',
         value: '',

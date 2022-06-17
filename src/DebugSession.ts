@@ -115,7 +115,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments
   ) {
-    const enableReverseDebugging = this.getSettingValue(
+    const enableReverseDebugging = DebugSession.getSettingValue(
       'enableReverseDebugging'
     );
 
@@ -130,7 +130,7 @@ export class DebugSession extends LoggingDebugSession {
       supportsSteppingGranularity: true,
       supportsExceptionInfoRequest: true,
       supportsLogPoints: true,
-      supportsCompletionsRequest: this.getSettingValue(
+      supportsCompletionsRequest: DebugSession.getSettingValue(
         'enableCommandCompletions'
       ),
       supportsStepBack: enableReverseDebugging,
@@ -240,8 +240,7 @@ export class DebugSession extends LoggingDebugSession {
 
   protected variablesRequest(
     response: DebugProtocol.VariablesResponse,
-    args: DebugProtocol.VariablesArguments,
-    request?: DebugProtocol.Request
+    args: DebugProtocol.VariablesArguments
   ) {
     this.debugger
       .getVariables(args.variablesReference)
@@ -506,7 +505,7 @@ export class DebugSession extends LoggingDebugSession {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private getSettingValue(settingName: string): any {
+  public static getSettingValue(settingName: string): any {
     return vscode.workspace.getConfiguration('vgdb').get(settingName);
   }
 

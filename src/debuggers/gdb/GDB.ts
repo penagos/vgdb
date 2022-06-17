@@ -5,6 +5,7 @@ import {CompletionItem} from 'vscode';
 import {Breakpoint, Source, StackFrame, Thread} from 'vscode-debugadapter';
 // eslint-disable-next-line node/no-extraneous-import
 import {DebugProtocol} from 'vscode-debugprotocol';
+import {DebugSession} from '../../DebugSession';
 import {
   Debugger,
   DebuggerException,
@@ -965,12 +966,17 @@ export class GDB extends Debugger {
   }
 
   protected handlePostDebuggerStartup(): Promise<boolean> {
+    const promises: Promise<any>[] = [
+      this.cacheRegisterNames(),
+      this.deferSharedLibraryLoading(),
+    ];
+
+    if (DebugSession.getSettingValue('enablePrettyPrinters')) {
+      promises.push(this.sendCommand('-enable-pretty-printing'));
+    }
+
     return new Promise(resolve => {
-      Promise.all([
-        this.cacheRegisterNames(),
-        this.deferSharedLibraryLoading(),
-        this.sendCommand('-enable-pretty-printing'),
-      ]).then(() => {
+      Promise.all(promises).then(() => {
         resolve(true);
       });
     });

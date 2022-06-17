@@ -90,6 +90,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable debug console command completions."
+        },
+        "vgdb.enablePrettyPrinters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GDB python pretty printers."
         }
       }
     },
