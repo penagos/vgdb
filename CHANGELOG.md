@@ -14,6 +14,9 @@ This release fixes the following bugs:
 - Stack frames with unavailable debug symbols are shown as grayed out to better convey lack of source
 - Fix failed debug launches with VSCode 1.68.0+ by reworking how the integrated terminal is used to spawn the MI debugger
 - Fix log breakpoints always resuming inferior execution (not honoring step requests)
+- Fix pretty printers not being used in Variables pane
+- Fix display for GDB dynamic variables (previously showing as scalar values)
+
 ## 1.2.0 (December/16/2021)
 
 This release adds the following features:
