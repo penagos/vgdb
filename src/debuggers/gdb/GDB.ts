@@ -583,10 +583,9 @@ export class GDB extends Debugger {
       } else if (referenceID < SCOPE_REGISTERS) {
         // Fetch root level locals
         this.clearDebuggerVariables().then(() => {
+          const frameID = referenceID - SCOPE_LOCAL - this.threadID;
           this.sendCommand(
-            `-stack-list-variables --thread ${this.threadID} --frame ${
-              referenceID - SCOPE_LOCAL - this.threadID
-            } --no-frame-filters --simple-values`
+            `-stack-list-variables --thread ${this.threadID} --frame ${frameID} --no-frame-filters --simple-values`
           ).then((record: OutputRecord) => {
             const pending: Promise<DebuggerVariable>[] = [];
 
