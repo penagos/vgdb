@@ -932,6 +932,14 @@ export class GDB extends Debugger {
     });
   }
 
+  public goto(file: string, line: number): Promise<boolean> {
+    return new Promise(resolve => {
+      this.sendCommand(`-exec-jump ${file}:${line}`).then(() => {
+        resolve(true);
+      });
+    });
+  }
+
   protected createDebuggerLaunchCommand(): string[] {
     // This idea is borrowed from the Microsoft cpptools VSCode extension.
     // It really is the only conceivable way to support running in the

@@ -132,6 +132,7 @@ export abstract class Debugger extends EventEmitter {
   public abstract getThreads(): Promise<any>;
   public abstract getVariable(name: string): DebuggerVariable | undefined;
   public abstract getVariables(referenceID: number): Promise<any>;
+  public abstract goto(file: string, line: number): Promise<boolean>;
   public abstract next(
     threadID: number,
     granularity: string

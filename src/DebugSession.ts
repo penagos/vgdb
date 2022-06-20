@@ -135,6 +135,7 @@ export class DebugSession extends LoggingDebugSession {
       ),
       supportsStepBack: enableReverseDebugging,
       supportsFunctionBreakpoints: true,
+      supportsGotoTargetsRequest: true,
       exceptionBreakpointFilters: [
         {filter: EXCEPTION_THROW, label: 'Thrown Exceptions'},
         {filter: EXCEPTION_CATCH, label: 'Caught Exceptions'},
@@ -478,6 +479,16 @@ export class DebugSession extends LoggingDebugSession {
     this.debugger.setExceptionBreakpoints(args.filters).then(() => {
       this.sendResponse(response);
     });
+  }
+
+  protected gotoTargetsRequest(
+    response: DebugProtocol.GotoTargetsResponse,
+    args: DebugProtocol.GotoTargetsArguments
+  ): void {
+    // TODO: why can source path be empty?
+    this.debugger
+      .goto(args.source.path || '', args.line)
+      .then(() => this.sendResponse(response));
   }
 
   protected disconnectRequest(

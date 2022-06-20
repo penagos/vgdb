@@ -5,6 +5,7 @@
 
 This release adds the following features:
 
+- Impelment "Jump to Cursor" functionality (gotoTargetsRequest DAP)
 - `debuggerArgs` launch configuration setting: pass arbitrary arguments to the debugger extension (Fixes #20)
 - Improve verbose debugging output by including commands sent to MI debugger
 
