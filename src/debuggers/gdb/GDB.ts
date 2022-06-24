@@ -265,11 +265,13 @@ export class GDB extends Debugger {
         case RUNNING:
           // When the inferior resumes execution, remove all tracked
           // variables which were used to service variable reference IDs
-          this.threadID = -1;
+          if (this.threadID === record.getResult('thread-id')) {
+            this.threadID = -1;
 
-          this.clearDebuggerVariables().then(() => {
-            this.emit(EVENT_RUNNING, this.threadID, isNaN(this.threadID));
-          });
+            this.clearDebuggerVariables().then(() => {
+              this.emit(EVENT_RUNNING, this.threadID, isNaN(this.threadID));
+            });
+          }
           break;
       }
     };
@@ -547,7 +549,8 @@ export class GDB extends Debugger {
               const newVariable: DebuggerVariable = {
                 name: child[1].exp,
                 debuggerName: child[1].name,
-                numberOfChildren: parseInt(child[1].numchild),
+                numberOfChildren:
+                  parseInt(child[1].numchild) || parseInt(child[1].dynamic),
                 referenceID:
                   this.variables.size + 1 + childrenVariables.size + 1,
                 value: child[1].value || '',
@@ -911,8 +914,8 @@ export class GDB extends Debugger {
           // if they are a composite/aggregate type
           const childCount =
             parseInt(gdbVariable.getResult('numchild')) ||
-            (parseInt(gdbVariable.getResult('dynamic')) &&
-              parseInt(gdbVariable.getResult('has_more')));
+            parseInt(gdbVariable.getResult('dynamic')) ||
+            parseInt(gdbVariable.getResult('has_more'));
 
           const variableValue = gdbVariable.getResult('value');
           const newVariable: DebuggerVariable = {
