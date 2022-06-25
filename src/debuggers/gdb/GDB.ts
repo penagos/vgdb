@@ -529,37 +529,44 @@ export class GDB extends Debugger {
           let childrenVariables = new Map();
           const pending: Promise<any>[] = [];
 
-          children.getResult('children').forEach(child => {
-            // Check to see if this is a pseudo child on an aggregate type
-            // such as private, public, protected, etc. If so, traverse into
-            // child and annotate its consituents with such attribute for
-            // special treating by the front-end. Note we could have mulitple
-            // such pseudo-levels at a given level
-            if (this.isPseudoVariableChild(child[1])) {
-              const pseudoPromise = getVariableChildren(child[1].name);
-              pseudoPromise.then(variables => {
-                childrenVariables = new Map([
-                  ...childrenVariables,
-                  ...variables,
-                ]);
-              });
+          // Safety check
+          if (parseInt(children.getResult('numchild'))) {
+            children.getResult('children').forEach(child => {
+              // Check to see if this is a pseudo child on an aggregate type
+              // such as private, public, protected, etc. If so, traverse into
+              // child and annotate its consituents with such attribute for
+              // special treating by the front-end. Note we could have mulitple
+              // such pseudo-levels at a given level
+              if (this.isPseudoVariableChild(child[1])) {
+                const pseudoPromise = getVariableChildren(child[1].name);
+                pseudoPromise.then(variables => {
+                  childrenVariables = new Map([
+                    ...childrenVariables,
+                    ...variables,
+                  ]);
+                });
 
-              pending.push(pseudoPromise);
-            } else {
-              const newVariable: DebuggerVariable = {
-                name: child[1].exp,
-                debuggerName: child[1].name,
-                numberOfChildren:
-                  parseInt(child[1].numchild) || parseInt(child[1].dynamic),
-                referenceID:
-                  this.variables.size + 1 + childrenVariables.size + 1,
-                value: child[1].value || '',
-                type: child[1].type,
-              };
+                pending.push(pseudoPromise);
+              } else {
+                const newVariable: DebuggerVariable = {
+                  name: child[1].exp,
+                  debuggerName: child[1].name,
+                  numberOfChildren:
+                    parseInt(child[1].numchild) ||
+                    (parseInt(child[1].dynamic) &&
+                    child[1].displayhint !== 'string'
+                      ? 1
+                      : 0), // TODO: hacky -- revisit this
+                  referenceID:
+                    this.variables.size + 1 + childrenVariables.size + 1,
+                  value: child[1].value || '',
+                  type: child[1].type,
+                };
 
-              childrenVariables.set(newVariable.referenceID, newVariable);
-            }
-          });
+                childrenVariables.set(newVariable.referenceID, newVariable);
+              }
+            });
+          }
 
           Promise.all(pending).then(() => {
             this.variables = new Map([...this.variables, ...childrenVariables]);
