@@ -1,7 +1,7 @@
 # Release Notes
 **This extension is under active development**
 
-## 1.3.0 (July/1/2022)
+## 1.3.1 (July/5/2022)
 
 This release adds the following features:
 
