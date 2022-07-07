@@ -230,8 +230,12 @@ export class GDB extends Debugger {
 
               case EVENT_SIGNAL:
                 if (!this.ignorePause) {
-                  this.lastException = new GDBException(record);
-                  this.emit(EVENT_SIGNAL, this.threadID);
+                  if (record.getResult('signal-meaning') === 'Interrupt') {
+                    this.emit(EVENT_PAUSED, this.threadID);
+                  } else {
+                    this.lastException = new GDBException(record);
+                    this.emit(EVENT_SIGNAL, this.threadID);
+                  }
                 }
                 break;
 
@@ -263,14 +267,17 @@ export class GDB extends Debugger {
           break;
 
         case RUNNING:
-          // When the inferior resumes execution, remove all tracked
-          // variables which were used to service variable reference IDs
-          if (this.threadID === record.getResult('thread-id')) {
-            this.threadID = -1;
+          {
+            // When the inferior resumes execution, remove all tracked
+            // variables which were used to service variable reference IDs
+            const threadID = record.getResult('thread-id');
+            if (this.threadID === threadID || threadID === 'all') {
+              this.threadID = -1;
 
-            this.clearDebuggerVariables().then(() => {
-              this.emit(EVENT_RUNNING, this.threadID, isNaN(this.threadID));
-            });
+              this.clearDebuggerVariables().then(() => {
+                this.emit(EVENT_RUNNING, this.threadID, isNaN(this.threadID));
+              });
+            }
           }
           break;
       }

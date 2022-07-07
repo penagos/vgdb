@@ -562,8 +562,8 @@ export class DebugSession extends LoggingDebugSession {
       this.sendEvent(new StoppedEvent('exception', threadID));
     });
 
-    this.debugger.on(EVENT_PAUSED, () => {
-      this.sendEvent(new StoppedEvent('pause', 1));
+    this.debugger.on(EVENT_PAUSED, (threadID: number) => {
+      this.sendEvent(new StoppedEvent('pause', threadID));
     });
 
     this.debugger.on(EVENT_ERROR, (msg: string) => {
