@@ -450,7 +450,7 @@ export class DebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetVariableResponse,
     args: DebugProtocol.SetVariableArguments
   ): void {
-    this.debugger.setVariable(args.variablesReference, args.value).then(() => {
+    this.debugger.setVariable(args.variablesReference, args).then(() => {
       response.body = {
         value: args.value,
       };

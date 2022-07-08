@@ -156,8 +156,8 @@ export abstract class Debugger extends EventEmitter {
   ): Promise<Breakpoint[]>;
   public abstract spawnDebugger(): Promise<boolean>;
   public abstract setVariable(
-    id: number,
-    value: string
+    referenceID: number,
+    args: DebugProtocol.SetVariableArguments
   ): Promise<OutputRecord | null>;
   public abstract stepIn(threadID: number): Promise<OutputRecord>;
   public abstract stepOut(threadID: number): Promise<OutputRecord>;

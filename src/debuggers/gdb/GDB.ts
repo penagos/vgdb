@@ -503,13 +503,20 @@ export class GDB extends Debugger {
     });
   }
 
-  public setVariable(id: number, value: string): Promise<OutputRecord | null> {
-    const variable = this.variables.get(this.getNormalizedVariableID(id));
+  public setVariable(
+    referenceID: number,
+    args: DebugProtocol.SetVariableArguments
+  ): Promise<OutputRecord | null> {
+    const variable = this.variables.get(
+      this.getNormalizedVariableID(referenceID)
+    );
 
     // This should always hit in the map. If it doesn't however, do not allow
     // the updating of this variable
     if (variable) {
-      return this.sendCommand(`-var-assign ${variable.debuggerName} ${value}`);
+      return this.sendCommand(
+        `-var-assign ${variable.debuggerName} ${args.value}`
+      );
     } else {
       return new Promise(resolve => {
         resolve(null);
