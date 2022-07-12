@@ -534,7 +534,7 @@ export class DebugSession extends LoggingDebugSession {
     // Pipe to debug console
     this.debugger.on(EVENT_OUTPUT, (text: string, type: string) => {
       // Massage GDB output as much as possible
-      this.sendEvent(new OutputEvent(text + '\n', type));
+      this.sendEvent(new OutputEvent(text, type));
     });
 
     // Events triggered by debuggeer

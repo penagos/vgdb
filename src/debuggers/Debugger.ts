@@ -187,7 +187,6 @@ export abstract class Debugger extends EventEmitter {
   public sanitize(text: string, MI?: boolean): string {
     text = (text || '')
       .replace(/&"/g, '')
-      .replace(/\\n/g, '')
       .replace(/\\r/g, '')
       .replace(/\\t/g, '\t')
       .replace(/\\v/g, '\v')
@@ -199,6 +198,11 @@ export abstract class Debugger extends EventEmitter {
     // to strip out
     if (MI) {
       text = text.replace(/^~"*/g, '').replace(/"$/g, '');
+
+      // TODO: is it safe to do this for both cases??
+      text = text.replace(/\\n/g, '\n');
+    } else {
+      text = text.replace(/\\n/g, '');
     }
 
     return text;
