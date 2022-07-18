@@ -3,6 +3,10 @@
 
 ## 1.3.2 (TBD)
 
+This release adds the following features:
+
+- Experimental support for remote debugging
+
 This release fixes the following bugs:
 
 - Newline parsing on GDB MI output

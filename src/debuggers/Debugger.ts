@@ -46,6 +46,9 @@ export abstract class Debugger extends EventEmitter {
   protected cwd: string;
   protected debuggerPath: string;
   protected debuggerArgs: string[];
+  protected debuggerServerAddress: string;
+  protected debuggerServerPath: string;
+  protected debuggerServerArgs: string[];
   protected environmentVariables: string[];
   protected inferiorProgram: string | number;
   protected attachPID: number;
@@ -220,8 +223,9 @@ export abstract class Debugger extends EventEmitter {
     this.cwd = args.cwd || '';
     this.debuggerPath = args.debugger || this.debuggerPath;
     this.debuggerArgs = args.debuggerArgs || this.debuggerArgs;
-    this.environmentVariables = args.env || [];
-    this.inferiorProgram = args.program;
+    this.debuggerServerAddress = args.debuggerServerAddress || this.debuggerServerAddress;
+    this.debuggerServerPath = args.debuggerServerPath || this.debuggerServerPath;
+    this.debuggerServerArgs = args.debuggerServerArgs || this.debuggerServerArgs;
     this.startupCommands = args.startupCmds || [];
     this.useExternalTerminal = args.externalConsole || false;
     this.useAbsoluteFilePathsForBreakpoints =

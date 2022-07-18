@@ -162,6 +162,22 @@
                 "description": "Arguments to pass to the debugger",
                 "default": []
               },
+              "debuggerServerAddress": {
+                "type": "string",
+                "description": "TCP Address with port (or serial) for the remote GDB server",
+                "default": "localhost"
+              },
+              "debuggerServerPath": {
+                "type": "string",
+                "description": "Path to remote GDB server",
+                "default": "gdb"
+              },
+              "debuggerServerArgs": {
+                "type": "array",
+                "description": "Arguments to pass to the remote debugger",
+                "default": []
+              },
+
               "startupCmds": {
                 "type": "array",
                 "description": "Startup commands to run in GDB",
