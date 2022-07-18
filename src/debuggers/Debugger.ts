@@ -226,6 +226,7 @@ export abstract class Debugger extends EventEmitter {
     this.debuggerServerAddress = args.debuggerServerAddress || this.debuggerServerAddress;
     this.debuggerServerPath = args.debuggerServerPath || this.debuggerServerPath;
     this.debuggerServerArgs = args.debuggerServerArgs || this.debuggerServerArgs;
+    this.environmentVariables = args.environmentVariables || [];
     this.startupCommands = args.startupCmds || [];
     this.useExternalTerminal = args.externalConsole || false;
     this.useAbsoluteFilePathsForBreakpoints =
