@@ -1,6 +1,12 @@
 # Release Notes
 **This extension is under active development**
 
+## 1.3.2
+
+This release fixes the following bugs:
+
+- Pause button showing `exception` in callstack and not allowing proper resumption on single-threaded applications
+
 ## 1.3.1 (July/5/2022)
 
 This release adds the following features:

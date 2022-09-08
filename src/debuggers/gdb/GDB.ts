@@ -514,9 +514,11 @@ export class GDB extends Debugger {
     // This should always hit in the map. If it doesn't however, do not allow
     // the updating of this variable
     if (variable) {
-      return this.sendCommand(
-        `-var-assign ${variable.debuggerName} ${args.value}`
-      );
+      let accessName = variable.debuggerName;
+      if (args.name !== variable.name) {
+        accessName = `${accessName}.${args.name}`;
+      }
+      return this.sendCommand(`-var-assign ${accessName} ${args.value}`);
     } else {
       return new Promise(resolve => {
         resolve(null);
@@ -939,16 +941,17 @@ export class GDB extends Debugger {
             parseInt(gdbVariable.getResult('has_more'));
 
           const variableValue = gdbVariable.getResult('value');
+          const newReferenceID = this.variables.size + 1;
           const newVariable: DebuggerVariable = {
             name: name,
             debuggerName: gdbVariable.getResult('name'),
             numberOfChildren: childCount,
-            referenceID: childCount ? this.variables.size + 1 : 0,
+            referenceID: childCount ? newReferenceID : 0,
             value: variableValue,
             type: gdbVariable.getResult('type'),
           };
 
-          this.variables.set(this.variables.size + 1, newVariable);
+          this.variables.set(newReferenceID, newVariable);
 
           resolve(newVariable);
         }
