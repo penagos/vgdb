@@ -1,10 +1,15 @@
 # Release Notes
 **This extension is under active development**
 
-## 1.3.2
+## 1.3.2 (TBD)
+
+This release adds the following features:
+
+- Experimental support for remote debugging
 
 This release fixes the following bugs:
 
+- Newline parsing on GDB MI output
 - Pause button showing `exception` in callstack and not allowing proper resumption on single-threaded applications
 
 ## 1.3.1 (July/5/2022)
