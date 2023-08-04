@@ -221,6 +221,7 @@ export abstract class Debugger extends EventEmitter {
 
   private applyArguments(args: any) {
     this.cwd = args.cwd || '';
+    this.inferiorProgram = args.program;
     this.debuggerPath = args.debugger || this.debuggerPath;
     this.debuggerArgs = args.debuggerArgs || this.debuggerArgs;
     this.debuggerServerAddress = args.debuggerServerAddress || this.debuggerServerAddress;
